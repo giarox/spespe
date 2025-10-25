@@ -1,8 +1,9 @@
 "use client";
+
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function AuthStatus() {
+export default function SignOutButton({ className }: { className?: string }) {
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
@@ -13,11 +14,13 @@ export default function AuthStatus() {
   }
 
   return (
-    <div className="space-y-2">
-      <p>You are signed in.</p>
-      <button onClick={signOut} disabled={loading} className="underline">
-        {loading ? "Signing out..." : "Sign out"}
-      </button>
-    </div>
+    <button
+      onClick={signOut}
+      disabled={loading}
+      className={className ?? "underline"}
+      type="button"
+    >
+      {loading ? "Sto uscendo..." : "Esci"}
+    </button>
   );
 }
