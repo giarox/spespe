@@ -82,31 +82,34 @@ async function clickNext(page: import("playwright").Page) {
   return false;
 }
 
+async function dismissOverlay(page: import("playwright").Page) {
+  const consentButton = page.locator("#onetrust-accept-btn-handler, button[aria-label*='Accetta']");
+  if (await consentButton.count()) {
+    try {
+      await consentButton.first().click({ timeout: 5_000 });
+      await page.waitForTimeout(300);
+    } catch {
+      // ignore
+    }
+  }
+  await page.addStyleTag({ content: "#onetrust-consent-sdk, .onetrust-pc-dark-filter { display: none !important; pointer-events: none !important; }" });
+  await page.evaluate(() => {
+    document.querySelectorAll("#onetrust-consent-sdk, .onetrust-pc-dark-filter").forEach((el) => el.remove());
+  });
+}
+
 async function capturePages(ctx: AdapterContext, flyer: FlyerCandidate): Promise<CaptureResult> {
   const context = await createContext(ctx.browser);
   const page = await context.newPage();
   ctx.logger.info("lidl: loading flyer", { url: flyer.url });
   await page.goto(flyer.url, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  const consentButton = page.locator("#onetrust-accept-btn-handler, button[aria-label*='Accetta']");
-  if (await consentButton.count()) {
-    try {
-      await consentButton.first().click({ timeout: 5_000 });
-      await page.waitForTimeout(500);
-    } catch {
-      // overlay might disappear automatically; ignore errors
-    }
-  }
-  await page.evaluate(() => {
-    const overlay = document.querySelector("#onetrust-consent-sdk");
-    if (overlay instanceof HTMLElement) overlay.style.display = "none";
-    const filter = document.querySelector(".onetrust-pc-dark-filter");
-    if (filter instanceof HTMLElement) filter.style.display = "none";
-  });
+  await dismissOverlay(page);
 
   const pages: PageImage[] = [];
   const seenHashes = new Set<string>();
 
   for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo += 1) {
+    await dismissOverlay(page);
     const src = await waitForHighResImage(page);
     if (!src) break;
     const imgHash = hashString(src);
