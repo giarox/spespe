@@ -19,16 +19,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          website: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          website?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -43,6 +46,9 @@ export type Database = {
           period_start: string | null
           source_url: string
           storage_path: string | null
+          vendor: string | null
+          viewer_url: string | null
+          publication_id: string | null
         }
         Insert: {
           chain_id?: string | null
@@ -54,6 +60,9 @@ export type Database = {
           period_start?: string | null
           source_url: string
           storage_path?: string | null
+          vendor?: string | null
+          viewer_url?: string | null
+          publication_id?: string | null
         }
         Update: {
           chain_id?: string | null
@@ -65,6 +74,9 @@ export type Database = {
           period_start?: string | null
           source_url?: string
           storage_path?: string | null
+          vendor?: string | null
+          viewer_url?: string | null
+          publication_id?: string | null
         }
         Relationships: [
           {
@@ -76,50 +88,254 @@ export type Database = {
           },
         ]
       }
+      flyer_pages: {
+        Row: {
+          created_at: string | null
+          flyer_id: string | null
+          height: number | null
+          id: string
+          image_hash: string | null
+          image_url: string
+          page_no: number
+          width: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          flyer_id?: string | null
+          height?: number | null
+          id?: string
+          image_hash?: string | null
+          image_url: string
+          page_no: number
+          width?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          flyer_id?: string | null
+          height?: number | null
+          id?: string
+          image_hash?: string | null
+          image_url?: string
+          page_no?: number
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flyer_pages_flyer_id_fkey"
+            columns: ["flyer_id"]
+            isOneToOne: false
+            referencedRelation: "flyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flyer_runs: {
+        Row: {
+          chain_id: string | null
+          error_message: string | null
+          finished_at: string | null
+          flyer_id: string | null
+          id: string
+          offers_detected: number | null
+          pages_processed: number | null
+          started_at: string | null
+          status: string
+          vendor: string | null
+        }
+        Insert: {
+          chain_id?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          flyer_id?: string | null
+          id?: string
+          offers_detected?: number | null
+          pages_processed?: number | null
+          started_at?: string | null
+          status: string
+          vendor?: string | null
+        }
+        Update: {
+          chain_id?: string | null
+          error_message?: string | null
+          finished_at?: string | null
+          flyer_id?: string | null
+          id?: string
+          offers_detected?: number | null
+          pages_processed?: number | null
+          started_at?: string | null
+          status?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flyer_runs_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "chains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flyer_runs_flyer_id_fkey"
+            columns: ["flyer_id"]
+            isOneToOne: false
+            referencedRelation: "flyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      list_items: {
+        Row: {
+          id: string
+          list_id: string | null
+          offer_id: string | null
+          qty: number | null
+        }
+        Insert: {
+          id?: string
+          list_id?: string | null
+          offer_id?: string | null
+          qty?: number | null
+        }
+        Update: {
+          id?: string
+          list_id?: string | null
+          offer_id?: string | null
+          qty?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "list_items_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lists: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lists_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offers: {
         Row: {
+          brand: string | null
+          category: string | null
+          chain_id: string | null
           created_at: string
           discount_pct: number | null
+          discount_type: string | null
+          discount_value: number | null
+          flyer_id: string | null
           id: string
           image_url: string | null
           original_price: number | null
           price: number
           product_id: string | null
+          product_name: string | null
           searchable: unknown
+          sku: string | null
           source_url: string | null
           store_id: string | null
+          unit: string | null
+          unit_price: number | null
           valid_from: string | null
           valid_to: string | null
         }
         Insert: {
+          brand?: string | null
+          category?: string | null
+          chain_id?: string | null
           created_at?: string
           discount_pct?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
+          flyer_id?: string | null
           id?: string
           image_url?: string | null
           original_price?: number | null
           price: number
           product_id?: string | null
+          product_name?: string | null
           searchable?: unknown
+          sku?: string | null
           source_url?: string | null
           store_id?: string | null
+          unit?: string | null
+          unit_price?: number | null
           valid_from?: string | null
           valid_to?: string | null
         }
         Update: {
+          brand?: string | null
+          category?: string | null
+          chain_id?: string | null
           created_at?: string
           discount_pct?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
+          flyer_id?: string | null
           id?: string
           image_url?: string | null
           original_price?: number | null
           price?: number
           product_id?: string | null
+          product_name?: string | null
           searchable?: unknown
+          sku?: string | null
           source_url?: string | null
           store_id?: string | null
+          unit?: string | null
+          unit_price?: number | null
           valid_from?: string | null
           valid_to?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "offers_chain_id_fkey"
+            columns: ["chain_id"]
+            isOneToOne: false
+            referencedRelation: "chains"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offers_flyer_id_fkey"
+            columns: ["flyer_id"]
+            isOneToOne: false
+            referencedRelation: "flyers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "offers_product_id_fkey"
             columns: ["product_id"]
@@ -185,32 +401,38 @@ export type Database = {
         Row: {
           address: string | null
           chain_id: string | null
+          city: string | null
           created_at: string
           geom: unknown
           id: string
           lat: number | null
           lon: number | null
           name: string
+          postcode: string | null
         }
         Insert: {
           address?: string | null
           chain_id?: string | null
+          city?: string | null
           created_at?: string
           geom?: unknown
           id?: string
           lat?: number | null
           lon?: number | null
           name: string
+          postcode?: string | null
         }
         Update: {
           address?: string | null
           chain_id?: string | null
+          city?: string | null
           created_at?: string
           geom?: unknown
           id?: string
           lat?: number | null
           lon?: number | null
           name?: string
+          postcode?: string | null
         }
         Relationships: [
           {
@@ -221,6 +443,65 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_locations: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          label: string | null
+          lat: number | null
+          lon: number | null
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          label?: string | null
+          lat?: number | null
+          lon?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          label?: string | null
+          lat?: number | null
+          lon?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_locations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -568,6 +849,41 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      rpc_search_offers: {
+        Args: {
+          chain_filter: string
+          mode: string
+          q: string
+          radius_km: number
+          ul_lat: number
+          ul_lon: number
+        }
+        Returns: {
+          brand: string
+          category: string
+          chain_id: string
+          chain_name: string
+          d_km: number
+          discount_type: string
+          discount_value: number
+          id: string
+          image_url: string
+          original_price: number
+          price: number
+          product_name: string
+          score: number
+          sku: string
+          source_url: string
+          store_address: string
+          store_city: string
+          store_id: string
+          store_name: string
+          unit: string
+          unit_price: number
+          valid_from: string
+          valid_to: string
+        }[]
+      }
       st_3dclosestpoint: {
         Args: { geom1: unknown; geom2: unknown }
         Returns: unknown

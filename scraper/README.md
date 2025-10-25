@@ -1,31 +1,56 @@
-# Scraper (alpha)
+# Scraper
 
-This folder will eventually host the flyer discovery + parsing pipeline. For now it
-contains a single entry point so we can iterate quickly without touching the Next.js app.
+Lidl-first implementation of the crawling pipeline described in the roadmap.
 
-## Local setup
+## Prerequisites
+
+- Node 18+
+- `pnpm install` run at the repo root (installs shared deps)
+- Playwright browser binaries:
+
+  ```bash
+  cd scraper
+  pnpm install
+  npx playwright install chromium
+  ```
+
+- `.env` file inside `scraper/` with at least:
+
+  ```
+  SUPABASE_URL=https://jttjtsnosmptxzwfhoig.supabase.co
+  SUPABASE_SERVICE_ROLE=service-role-key
+  ```
+
+  (The service role key never ships to the frontend; keep it in GitHub/Vercel secrets.)
+
+Optional overrides:
+
+```
+LIDL_HUB_URL=https://www.lidl.it/volantini
+LIDL_MAX_PAGES=60
+LIDL_WAIT_MS=500
+```
+
+## What it does now
+
+- Discovers Lidl Italy flyers from the public hub (`chains/lidl.ts`)
+- Drives the Schwarz viewer via Playwright, capturing high-res image URLs page by page
+- Stores/upserts flyers, flyer pages, and run metadata through the Supabase service role
+
+## Run locally
 
 ```bash
 cd scraper
-pnpm install
-```
-
-Create a `.env` file in this folder with the service credentials you need:
-
-```
-SUPABASE_URL=https://jttjtsnosmptxzwfhoig.supabase.co
-SUPABASE_SERVICE_ROLE=...
-LOCATIONIQ_API_KEY=...
-```
-
-## Run the placeholder crawler
-
-Right now the script just fetches a couple of tables so we can confirm credentials work.
-Later we’ll plug in discovery/parsing modules per chain.
-
-```bash
 pnpm start
 ```
 
-Expected output shows how many chains/stores/offers exist and how many rows the script
-upserted (currently zero—just a stub).
+Logs are JSON lines. Look for:
+
+- `adapter:discovered` — how many flyers were found
+- `flyer:stored` — pages written to `flyer_pages`
+
+## Next steps (tracked in code TODOs)
+
+- Extract offers via OCR/heuristics per page
+- Add store locator ingestion for Lidl
+- Wire GitHub Action (`.github/workflows/scrape.yml`) once the pipeline is stable

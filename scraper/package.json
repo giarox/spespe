@@ -1,0 +1,17 @@
+{
+  "name": "spespe-scraper",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "start": "tsx crawler.ts",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.76.1",
+    "dotenv": "^16.4.7",
+    "p-limit": "^5.0.0",
+    "playwright": "^1.48.2",
+    "tsx": "^4.19.2"
+  }
+}
