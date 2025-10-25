@@ -86,7 +86,16 @@ async function capturePages(ctx: AdapterContext, flyer: FlyerCandidate): Promise
   const context = await createContext(ctx.browser);
   const page = await context.newPage();
   ctx.logger.info("lidl: loading flyer", { url: flyer.url });
-  await page.goto(flyer.url, { waitUntil: "domcontentloaded" });
+  await page.goto(flyer.url, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  const consentButton = page.locator("#onetrust-accept-btn-handler, button[aria-label*='Accetta']");
+  if (await consentButton.count()) {
+    try {
+      await consentButton.first().click({ timeout: 5_000 });
+      await page.waitForTimeout(500);
+    } catch {
+      // overlay might disappear automatically; ignore errors
+    }
+  }
 
   const pages: PageImage[] = [];
   const seenHashes = new Set<string>();
