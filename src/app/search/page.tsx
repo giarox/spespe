@@ -190,7 +190,7 @@ export default function SearchPage() {
         </div>
       </section>
 
-      {locationStatus === "idle" && (
+      {(locationStatus === "idle" || locationStatus === "requesting") && (
         <section className="rounded border p-4 space-y-2">
           <h2 className="text-lg font-semibold">Vuoi usare la tua posizione?</h2>
           <p className="text-sm text-gray-600">
