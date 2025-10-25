@@ -24,12 +24,13 @@ async function discover({ browser, logger }: AdapterContext): Promise<FlyerCandi
   const page = await context.newPage();
   logger.info("lidl: navigating hub", { url: HUB_URL });
   await page.goto(HUB_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await page.waitForSelector("a.flyer", { timeout: 30_000 });
 
-  const flyers = await page.$$eval("a[href*=\"/view/\"]", (anchors) =>
+  const flyers = await page.$$eval("a.flyer", (anchors) =>
     anchors
       .map((anchor) => ({
         url: anchor.getAttribute("href") || "",
-        title: anchor.textContent?.trim() || "",
+        title: anchor.querySelector(".flyer__name")?.textContent?.trim() || anchor.textContent?.trim() || "",
       }))
       .filter((entry) => entry.url.startsWith("http"))
   );
