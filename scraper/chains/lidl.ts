@@ -23,7 +23,7 @@ async function discover({ browser, logger }: AdapterContext): Promise<FlyerCandi
   const context = await createContext(browser);
   const page = await context.newPage();
   logger.info("lidl: navigating hub", { url: HUB_URL });
-  await page.goto(HUB_URL, { waitUntil: "networkidle" });
+  await page.goto(HUB_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
 
   const flyers = await page.$$eval("a[href*=\"/view/\"]", (anchors) =>
     anchors
