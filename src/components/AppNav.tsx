@@ -20,9 +20,14 @@ export default async function AppNav() {
               Cerca offerte
             </Link>
             {user && (
-              <Link href="/dashboard" className="hover:underline">
-                Dashboard
-              </Link>
+              <>
+                <Link href="/lista" className="hover:underline">
+                  Lista
+                </Link>
+                <Link href="/dashboard" className="hover:underline">
+                  Dashboard
+                </Link>
+              </>
             )}
           </div>
         </div>

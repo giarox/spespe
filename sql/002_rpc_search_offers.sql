@@ -40,6 +40,8 @@ with base as (
     s.name as store_name,
     s.address as store_address,
     s.city as store_city,
+    p.name as product_name,
+    p.brand as brand,
     case
       when ul_lat is null or ul_lon is null or s.lat is null or s.lon is null
         then null
@@ -48,6 +50,7 @@ with base as (
   from public.offers o
   join public.chains c on c.id = o.chain_id
   left join public.stores s on s.id = o.store_id
+  left join public.products p on p.id = o.product_id
   where
     (current_date between coalesce(o.valid_from, current_date) and coalesce(o.valid_to, current_date))
     and (q is null or o.searchable @@ plainto_tsquery('italian', q))
@@ -70,10 +73,28 @@ with base as (
   from filtered
 )
 select
-  f.id, f.store_id, f.chain_id, f.chain_name, f.product_name, f.brand, f.category,
-  f.price, f.original_price, f.discount_type, f.discount_value,
-  f.valid_from, f.valid_to, f.unit, f.unit_price, f.image_url, f.source_url, f.sku,
-  f.store_name, f.store_address, f.store_city, f.d_km,
+  f.id,
+  f.store_id,
+  f.chain_id,
+  f.chain_name,
+  f.product_name,
+  f.brand,
+  null::text as category,
+  f.price,
+  f.original_price,
+  null::text as discount_type,
+  null::numeric as discount_value,
+  f.valid_from,
+  f.valid_to,
+  null::text as unit,
+  null::numeric as unit_price,
+  f.image_url,
+  f.source_url,
+  null::text as sku,
+  f.store_name,
+  f.store_address,
+  f.store_city,
+  f.d_km,
   case
     when mode = 'price' then
       (1 - ((f.price - mm.minp) / nullif(mm.maxp - mm.minp, 0)))

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import AddToListButton from "@/components/AddToListButton";
 
 type SortMode = "mixed" | "price" | "distance";
 
@@ -49,8 +50,33 @@ export default function SearchPage() {
   const [sortMode, setSortMode] = useState<SortMode>("mixed");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [manualAddress, setManualAddress] = useState("");
+  const [manualLat, setManualLat] = useState("");
+  const [manualLon, setManualLon] = useState("");
   const [locationStatus, setLocationStatus] = useState<"idle" | "requesting" | "granted" | "denied" | "manual">("idle");
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [savingLocation, setSavingLocation] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        return;
+      }
+      const { data } = await supabase
+        .from("user_locations")
+        .select("lat, lon, address")
+        .eq("user_id", user.id)
+        .eq("is_default", true)
+        .maybeSingle();
+      if (data?.lat && data?.lon) {
+        setCoords({ lat: data.lat, lon: data.lon });
+        setManualAddress(data.address ?? "");
+        setLocationStatus("granted");
+      }
+    })();
+  }, [supabase]);
 
   useEffect(() => {
     async function loadOffers() {
@@ -93,6 +119,40 @@ export default function SearchPage() {
     });
   }, [offers, chainFilter]);
 
+  async function persistLocation(next: { lat: number; lon: number; address?: string }) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = "/login?redirect=/search";
+      return;
+    }
+    try {
+      setSavingLocation(true);
+      await supabase.from("users").upsert({ id: user.id, email: user.email }, { onConflict: "id" });
+      await supabase.from("user_locations").update({ is_default: false }).eq("user_id", user.id);
+      const { error } = await supabase.from("user_locations").insert({
+        user_id: user.id,
+        lat: next.lat,
+        lon: next.lon,
+        address: next.address,
+        is_default: true,
+      });
+      if (error) {
+        throw error;
+      }
+      setCoords({ lat: next.lat, lon: next.lon });
+      setManualAddress(next.address ?? "");
+      setLocationStatus("granted");
+      setLocationError(null);
+    } catch (error) {
+      console.error(error);
+      setLocationError("Errore nel salvataggio della posizione");
+    } finally {
+      setSavingLocation(false);
+    }
+  }
+
   function requestLocation() {
     if (!("geolocation" in navigator)) {
       setLocationError("Il tuo browser non supporta la geolocalizzazione.");
@@ -103,8 +163,11 @@ export default function SearchPage() {
     setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        setLocationStatus("granted");
+        persistLocation({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          address: "Posizione del browser",
+        });
       },
       (err) => {
         console.warn(err);
@@ -117,15 +180,25 @@ export default function SearchPage() {
 
   const showManualCard = locationStatus === "manual" || locationStatus === "denied";
 
+  async function saveManualCoords() {
+    const lat = parseFloat(manualLat);
+    const lon = parseFloat(manualLon);
+    if (Number.isNaN(lat) || Number.isNaN(lon)) {
+      setLocationError("Inserisci coordinate valide (latitudine, longitudine)");
+      return;
+    }
+    await persistLocation({ lat, lon, address: manualAddress || "Posizione manuale" });
+  }
+
   return (
-    <main className="max-w-4xl mx-auto p-6 space-y-6">
+    <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">Cerca offerte vicine</h1>
         <p className="text-gray-600">Trova i volantini della settimana e ordina per prezzo o distanza.</p>
       </header>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <div className="md:col-span-2 space-y-3">
+        <div className="space-y-3 md:col-span-2">
           <label className="block text-sm font-medium text-gray-700">Cosa stai cercando?</label>
           <input
             className="w-full rounded border px-3 py-2"
@@ -170,7 +243,7 @@ export default function SearchPage() {
         </div>
         <div className="space-y-3">
           <label className="block text-sm font-medium text-gray-700">Ordina per</label>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex flex-wrap gap-2">
             {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
               <button
                 key={mode}
@@ -191,12 +264,12 @@ export default function SearchPage() {
           <p className="text-sm text-gray-600">
             Serve solo per calcolare la distanza. Non salviamo nulla: la tua posizione rimane sul tuo dispositivo.
           </p>
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              className="rounded bg-black text-white px-4 py-2 text-sm"
+              className="rounded bg-black px-4 py-2 text-sm text-white"
               onClick={requestLocation}
-              disabled={locationStatus === "requesting"}
+              disabled={locationStatus === "requesting" || savingLocation}
             >
               {locationStatus === "requesting" ? "Sto chiedendo al browser..." : "Usa la posizione del browser"}
             </button>
@@ -213,14 +286,36 @@ export default function SearchPage() {
 
       {showManualCard && (
         <section className="rounded border p-4 space-y-2">
-          <h2 className="text-lg font-semibold">Inserisci il tuo indirizzo</h2>
-          <p className="text-sm text-gray-600">Per ora lo usiamo solo come riferimento testuale.</p>
+          <h2 className="text-lg font-semibold">Inserisci il tuo indirizzo/coordinate</h2>
+          <p className="text-sm text-gray-600">Per ora servono le coordinate (latitudine e longitudine).</p>
           <input
             className="w-full rounded border px-3 py-2"
-            placeholder="Via, città"
+            placeholder="Via, città (facoltativo)"
             value={manualAddress}
             onChange={(e) => setManualAddress(e.target.value)}
           />
+          <div className="grid gap-2 md:grid-cols-2">
+            <input
+              className="w-full rounded border px-3 py-2"
+              placeholder="Latitudine"
+              value={manualLat}
+              onChange={(e) => setManualLat(e.target.value)}
+            />
+            <input
+              className="w-full rounded border px-3 py-2"
+              placeholder="Longitudine"
+              value={manualLon}
+              onChange={(e) => setManualLon(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="rounded bg-black px-4 py-2 text-sm text-white"
+            onClick={saveManualCoords}
+            disabled={savingLocation}
+          >
+            {savingLocation ? "Salvo..." : "Salva come predefinita"}
+          </button>
         </section>
       )}
       {locationError && <p className="text-sm text-red-600">{locationError}</p>}
@@ -233,11 +328,11 @@ export default function SearchPage() {
           </p>
         </div>
         {filteredOffers.length === 0 && !loadingOffers ? (
-          <p className="text-gray-500 text-sm">Nessuna offerta corrisponde ai filtri. Ritenta allargando la ricerca.</p>
+          <p className="text-sm text-gray-500">Nessuna offerta corrisponde ai filtri. Ritenta allargando la ricerca.</p>
         ) : (
           <ul className="space-y-4">
             {filteredOffers.map((offer) => (
-              <li key={offer.id} className="rounded border p-4 space-y-2">
+              <li key={offer.id} className="space-y-2 rounded border p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-lg font-medium">{offer.product_name}</p>
@@ -250,24 +345,23 @@ export default function SearchPage() {
                     )}
                   </div>
                 </div>
-                <div className="text-sm text-gray-600 flex flex-wrap gap-2 items-center">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
                   <span>{offer.store_name ?? "Negozio"}</span>
                   {offer.store_address && <span>· {offer.store_address}</span>}
-                  {offer.chain_name && (
-                    <span className="px-2 py-0.5 text-xs bg-gray-100 rounded">{offer.chain_name}</span>
-                  )}
-                  {offer.d_km != null && (
-                    <span className="text-xs text-gray-500">{offer.d_km.toFixed(1)} km</span>
-                  )}
+                  {offer.chain_name && <span className="rounded bg-gray-100 px-2 py-0.5 text-xs">{offer.chain_name}</span>}
+                  {offer.d_km != null && <span className="text-xs text-gray-500">{offer.d_km.toFixed(1)} km</span>}
                 </div>
                 <div className="text-xs text-gray-500">
                   Valido {offer.valid_from ?? "?"} → {offer.valid_to ?? "?"}
                 </div>
-                {offer.source_url && (
-                  <a className="text-sm underline" href={offer.source_url} target="_blank" rel="noreferrer">
-                    Apri volantino
-                  </a>
-                )}
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  {offer.source_url && (
+                    <a className="underline" href={offer.source_url} target="_blank" rel="noreferrer">
+                      Apri volantino
+                    </a>
+                  )}
+                  <AddToListButton offerId={offer.id} />
+                </div>
               </li>
             ))}
           </ul>
