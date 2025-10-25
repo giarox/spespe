@@ -2,14 +2,37 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { OfferWithRelations } from "@/lib/supabase/types";
-import { haversineKm } from "@/lib/geo";
 
-type SortMode = "blended" | "price" | "distance";
-type OfferView = OfferWithRelations & { distanceKm: number | null };
+type SortMode = "mixed" | "price" | "distance";
+
+type SearchOffer = {
+  id: string;
+  store_id: string | null;
+  chain_id: string;
+  chain_name: string | null;
+  product_name: string;
+  brand: string | null;
+  category: string | null;
+  price: number;
+  original_price: number | null;
+  discount_type: string | null;
+  discount_value: number | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  unit: string | null;
+  unit_price: number | null;
+  image_url: string | null;
+  source_url: string | null;
+  sku: string | null;
+  store_name: string | null;
+  store_address: string | null;
+  store_city: string | null;
+  d_km: number | null;
+  score: number | null;
+};
 
 const SORT_LABELS: Record<SortMode, string> = {
-  blended: "Prezzo + distanza",
+  mixed: "Prezzo + distanza",
   price: "Solo prezzo",
   distance: "Solo distanza",
 };
@@ -18,12 +41,12 @@ const RADIUS_OPTIONS = [5, 10, 20, 30];
 
 export default function SearchPage() {
   const supabase = useMemo(() => createClient(), []);
-  const [offers, setOffers] = useState<OfferWithRelations[]>([]);
+  const [offers, setOffers] = useState<SearchOffer[]>([]);
   const [loadingOffers, setLoadingOffers] = useState(true);
   const [query, setQuery] = useState("");
   const [chainFilter, setChainFilter] = useState("tutte");
   const [radiusKm, setRadiusKm] = useState(10);
-  const [sortMode, setSortMode] = useState<SortMode>("blended");
+  const [sortMode, setSortMode] = useState<SortMode>("mixed");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [manualAddress, setManualAddress] = useState("");
   const [locationStatus, setLocationStatus] = useState<"idle" | "requesting" | "granted" | "denied" | "manual">("idle");
@@ -32,71 +55,43 @@ export default function SearchPage() {
   useEffect(() => {
     async function loadOffers() {
       setLoadingOffers(true);
-      const { data, error } = await supabase
-        .from("offers")
-        .select(
-          `*, product:products(*), store:stores(*, chain:chains(*))`
-        )
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.rpc("rpc_search_offers", {
+        q: query.trim() !== "" ? query.trim() : null,
+        ul_lat: coords?.lat ?? null,
+        ul_lon: coords?.lon ?? null,
+        mode: sortMode,
+        radius_km: coords ? radiusKm : null,
+        chain_filter: null,
+      });
       if (error) {
         console.error(error);
         setOffers([]);
       } else {
-        setOffers((data ?? []) as OfferWithRelations[]);
+        setOffers((data ?? []) as SearchOffer[]);
       }
       setLoadingOffers(false);
     }
     loadOffers();
-  }, [supabase]);
+  }, [supabase, query, coords, sortMode, radiusKm]);
 
   const chainOptions = useMemo(() => {
     const names = new Set<string>();
     offers.forEach((offer) => {
-      if (offer.store?.chain?.name) {
-        names.add(offer.store.chain.name);
+      if (offer.chain_name) {
+        names.add(offer.chain_name);
       }
     });
     return Array.from(names);
   }, [offers]);
 
-  const offersWithDistance = useMemo<OfferView[]>(() => {
-    return offers.map((offer) => {
-      const storeLat = offer.store?.lat;
-      const storeLon = offer.store?.lon;
-      const distanceKm =
-        coords && typeof storeLat === "number" && typeof storeLon === "number"
-          ? haversineKm(coords, { lat: storeLat, lon: storeLon })
-          : null;
-      return { ...offer, distanceKm };
-    });
-  }, [offers, coords]);
-
   const filteredOffers = useMemo(() => {
-    return offersWithDistance
-      .filter((offer) => {
-        if (query && !offer.product?.name?.toLowerCase().includes(query.toLowerCase())) {
-          return false;
-        }
-        if (chainFilter !== "tutte" && offer.store?.chain?.name !== chainFilter) {
-          return false;
-        }
-        if (coords && offer.distanceKm != null && offer.distanceKm > radiusKm) {
-          return false;
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortMode === "price") {
-          return a.price - b.price;
-        }
-        if (sortMode === "distance") {
-          return (a.distanceKm ?? Number.MAX_SAFE_INTEGER) - (b.distanceKm ?? Number.MAX_SAFE_INTEGER);
-        }
-        const aScore = a.price + (a.distanceKm ?? radiusKm);
-        const bScore = b.price + (b.distanceKm ?? radiusKm);
-        return aScore - bScore;
-      });
-  }, [offersWithDistance, query, chainFilter, coords, radiusKm, sortMode]);
+    return offers.filter((offer) => {
+      if (chainFilter !== "tutte" && offer.chain_name !== chainFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [offers, chainFilter]);
 
   function requestLocation() {
     if (!("geolocation" in navigator)) {
@@ -230,7 +225,7 @@ export default function SearchPage() {
       )}
       {locationError && <p className="text-sm text-red-600">{locationError}</p>}
 
-  <section className="space-y-3">
+      <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Risultati</h2>
           <p className="text-sm text-gray-600">
@@ -245,8 +240,8 @@ export default function SearchPage() {
               <li key={offer.id} className="rounded border p-4 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-lg font-medium">{offer.product?.name}</p>
-                    <p className="text-sm text-gray-600">{offer.product?.brand}</p>
+                    <p className="text-lg font-medium">{offer.product_name}</p>
+                    <p className="text-sm text-gray-600">{offer.brand}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold">€{offer.price.toFixed(2)}</p>
@@ -256,13 +251,13 @@ export default function SearchPage() {
                   </div>
                 </div>
                 <div className="text-sm text-gray-600 flex flex-wrap gap-2 items-center">
-                  <span>{offer.store?.name}</span>
-                  {offer.store?.address && <span>· {offer.store.address}</span>}
-                  {offer.store?.chain?.name && (
-                    <span className="px-2 py-0.5 text-xs bg-gray-100 rounded">{offer.store.chain.name}</span>
+                  <span>{offer.store_name ?? "Negozio"}</span>
+                  {offer.store_address && <span>· {offer.store_address}</span>}
+                  {offer.chain_name && (
+                    <span className="px-2 py-0.5 text-xs bg-gray-100 rounded">{offer.chain_name}</span>
                   )}
-                  {offer.distanceKm != null && (
-                    <span className="text-xs text-gray-500">{offer.distanceKm.toFixed(1)} km</span>
+                  {offer.d_km != null && (
+                    <span className="text-xs text-gray-500">{offer.d_km.toFixed(1)} km</span>
                   )}
                 </div>
                 <div className="text-xs text-gray-500">
