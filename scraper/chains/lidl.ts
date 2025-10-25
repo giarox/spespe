@@ -96,6 +96,12 @@ async function capturePages(ctx: AdapterContext, flyer: FlyerCandidate): Promise
       // overlay might disappear automatically; ignore errors
     }
   }
+  await page.evaluate(() => {
+    const overlay = document.querySelector("#onetrust-consent-sdk");
+    if (overlay instanceof HTMLElement) overlay.style.display = "none";
+    const filter = document.querySelector(".onetrust-pc-dark-filter");
+    if (filter instanceof HTMLElement) filter.style.display = "none";
+  });
 
   const pages: PageImage[] = [];
   const seenHashes = new Set<string>();
