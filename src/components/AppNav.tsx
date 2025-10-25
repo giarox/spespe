@@ -27,6 +27,9 @@ export default async function AppNav() {
                 <Link href="/dashboard" className="hover:underline">
                   Dashboard
                 </Link>
+                <Link href="/admin" className="hover:underline">
+                  Admin
+                </Link>
               </>
             )}
           </div>

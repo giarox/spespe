@@ -40,8 +40,8 @@ with base as (
     s.name as store_name,
     s.address as store_address,
     s.city as store_city,
-    p.name as product_name,
-    p.brand as brand,
+    p.name as product_name_override,
+    p.brand as brand_override,
     case
       when ul_lat is null or ul_lon is null or s.lat is null or s.lon is null
         then null
@@ -77,8 +77,8 @@ select
   f.store_id,
   f.chain_id,
   f.chain_name,
-  f.product_name,
-  f.brand,
+  coalesce(f.product_name_override, f.product_name) as product_name,
+  coalesce(f.brand_override, f.brand) as brand,
   null::text as category,
   f.price,
   f.original_price,
