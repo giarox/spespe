@@ -61,11 +61,23 @@ async function discover({ browser, logger }: AdapterContext): Promise<FlyerCandi
 
 async function waitForHighResImage(page: import("playwright").Page) {
   const locator = page.locator(".page--current .page__wrapper img");
-  await locator.first().waitFor({ state: "visible", timeout: 15_000 });
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  await locator.first().waitFor({ state: "visible", timeout: 30_000 });
+  for (let attempt = 0; attempt < 20; attempt += 1) {
     const src = await locator.first().getAttribute("src");
     if (src && src.includes("rs:fit:2400")) {
       return src;
+    }
+    const dataSrc = await locator.first().getAttribute("data-src");
+    if (dataSrc) {
+      const handle = await locator.first().elementHandle();
+      if (handle) {
+        await page.evaluate((el, desired) => {
+          const img = el as HTMLImageElement;
+          if (img.dataset.src) {
+            img.src = img.dataset.src.replace("rs:fit:1200", desired);
+          }
+        }, handle, "rs:fit:2400");
+      }
     }
     await page.waitForTimeout(WAIT_UPGRADE_MS);
   }
@@ -79,7 +91,9 @@ async function clickNext(page: import("playwright").Page) {
     await page.waitForTimeout(600);
     return true;
   }
-  return false;
+  await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(600);
+  return true;
 }
 
 async function dismissOverlay(page: import("playwright").Page) {
