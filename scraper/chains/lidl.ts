@@ -121,7 +121,11 @@ async function dismissOverlay(page: import("playwright").Page) {
   });
 }
 
-async function capturePages(ctx: AdapterContext, flyer: FlyerCandidate): Promise<CaptureResult> {
+async function capturePages(
+  ctx: AdapterContext,
+  flyer: FlyerCandidate,
+  maxPages = Number.POSITIVE_INFINITY
+): Promise<CaptureResult> {
 const context = await createContext(ctx.browser);
 const page = await context.newPage();
 ctx.logger.info("lidl: storage", { state: process.env.LIDL_STORAGE_STATE ? "loaded" : "empty" });
@@ -134,7 +138,7 @@ ctx.logger.info("lidl: storage", { state: process.env.LIDL_STORAGE_STATE ? "load
   const pages: PageImage[] = [];
   const seenHashes = new Set<string>();
 
-  for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo += 1) {
+  for (let pageNo = 1; pageNo <= Math.min(MAX_PAGES, maxPages); pageNo += 1) {
     await dismissOverlay(page);
     const src = await waitForHighResImage(page, pageNo, ctx.logger);
     if (!src) break;

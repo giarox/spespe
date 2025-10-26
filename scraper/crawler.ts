@@ -15,10 +15,11 @@ async function runAdapter(adapter: ChainAdapter) {
     logger.info("adapter:discovered", { chain: adapter.name, count: flyers.length });
 
     const maxFlyers = Number(process.env.LIDL_MAX_FLYERS ?? flyers.length);
+    const maxPagesPerFlyer = Number(process.env.LIDL_MAX_PAGES ?? Number.POSITIVE_INFINITY);
     for (const flyer of flyers.slice(0, maxFlyers)) {
       try {
         logger.info("flyer:capture", { chain: adapter.name, url: flyer.url });
-        const capture = await adapter.capture({ browser, supabase, logger }, flyer);
+        const capture = await adapter.capture({ browser, supabase, logger }, flyer, maxPagesPerFlyer);
         if (!capture.pages.length) {
           logger.warn("flyer:no_pages", { url: flyer.url });
           continue;

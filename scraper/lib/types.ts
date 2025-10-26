@@ -31,7 +31,7 @@ export interface ChainAdapter {
   name: string;
   vendor: string;
   discover(ctx: AdapterContext): Promise<FlyerCandidate[]>;
-  capture(ctx: AdapterContext, flyer: FlyerCandidate): Promise<CaptureResult>;
+  capture(ctx: AdapterContext, flyer: FlyerCandidate, maxPages?: number): Promise<CaptureResult>;
 }
 
 export interface AdapterContext {
