@@ -127,6 +127,8 @@ ctx.logger.info("lidl: storage", { state: process.env.LIDL_STORAGE_STATE ? "load
   ctx.logger.info("lidl: loading flyer", { url: flyer.url });
   await page.goto(flyer.url, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await dismissOverlay(page);
+  await page.waitForURL("**/view/**", { timeout: 60_000 });
+  ctx.logger.info("lidl: viewer ready", { url: page.url() });
 
   const pages: PageImage[] = [];
   const seenHashes = new Set<string>();
