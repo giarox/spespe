@@ -1,0 +1,189 @@
+{
+  "cookies": [
+    {
+      "name": "LidlID",
+      "value": "81387c1a-5a1e-4f11-9b9d-68d01eafcf55",
+      "domain": "www.lidl.it",
+      "path": "/",
+      "expires": 1793025758.609472,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "YSC",
+      "value": "RpCPK0VkvuY",
+      "domain": ".youtube.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://lidl.it",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "__Secure-ROLLOUT_TOKEN",
+      "value": "CNOK7biv7uyHYhDKm9ems8GQAxjKm9ems8GQAw%3D%3D",
+      "domain": ".youtube.com",
+      "path": "/",
+      "expires": 1777017758.714645,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://lidl.it",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "VISITOR_INFO1_LIVE",
+      "value": "OhkNmQ9mIPU",
+      "domain": ".youtube.com",
+      "path": "/",
+      "expires": 1777017758.715076,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://lidl.it",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "VISITOR_PRIVACY_METADATA",
+      "value": "CgJJVBIhEh0SGwsMDg8QERITFBUWFxgZGhscHR4fICEiIyQlJiAx",
+      "domain": ".youtube.com",
+      "path": "/",
+      "expires": 1777017758.715096,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None",
+      "partitionKey": "https://lidl.it",
+      "_crHasCrossSiteAncestor": true
+    },
+    {
+      "name": "OptanonAlertBoxClosed",
+      "value": "2025-10-26T08:02:40.733Z",
+      "domain": ".lidl.it",
+      "path": "/",
+      "expires": 1793001760,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "OptanonConsent",
+      "value": "isGpcEnabled=0&datestamp=Sun+Oct+26+2025+09%3A02%3A40+GMT%2B0100+(Ora+standard+dell%E2%80%99Europa+centrale)&version=202507.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=0b64cb98-e4bc-40dd-87ac-20cab13d30e9&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0002%3A1%2CC0003%3A1%2CC0004%3A1&intType=1",
+      "domain": ".lidl.it",
+      "path": "/",
+      "expires": 1793001760,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "UserVisits",
+      "value": "current_visit_date:26.10.2025",
+      "domain": "www.lidl.it",
+      "path": "/",
+      "expires": 1793001761,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_gcl_au",
+      "value": "1.1.2144181074.1761465761",
+      "domain": ".lidl.it",
+      "path": "/",
+      "expires": 1769241761,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "adSessionId",
+      "value": "DBB102F9-4D77-4539-9AC2-A23E89C49FCC",
+      "domain": "www.lidl.it",
+      "path": "/",
+      "expires": 1796025761.371441,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.1.648403011.1761465762",
+      "domain": ".lidl.it",
+      "path": "/",
+      "expires": 1796025761.581427,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga_E1Z9GJN46C",
+      "value": "GS2.1.s1761465761$o1$g0$t1761465761$j60$l0$h1425722476",
+      "domain": ".lidl.it",
+      "path": "/",
+      "expires": 1796025761.606374,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "FPID",
+      "value": "FPID2.2.%2FcqUtJHz3xJ26xM3elMmiOA%2Fr4XORZpAzA6VRMWacHs%3D.1761465762",
+      "domain": ".lidl.it",
+      "path": "/",
+      "expires": 1796025761.728308,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "FPLC",
+      "value": "kxmoq6GCXjRoXVBqGkPOZ9WLrva%2FnqdjNzsrMAxshj79fH3EEbz2JnZOdMHzvngLlNDG2L5ikMidKHRcpbj%2F2kR1B6FoZPqjGMnrF%2BQHis0NaU%2FiXvNxEEIRUba9tw%3D%3D",
+      "domain": ".lidl.it",
+      "path": "/",
+      "expires": 1761537761.728351,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "FPGSID",
+      "value": "1.1761465761.1761465761.G-E1Z9GJN46C.BqA0FOPXcKRgq7dlu-00QQ",
+      "domain": ".lidl.it",
+      "path": "/",
+      "expires": 1761467561.728364,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://www.lidl.it",
+      "localStorage": [
+        {
+          "name": "last_visit_date",
+          "value": "null"
+        },
+        {
+          "name": "userConsentGivenFirstTime",
+          "value": "0b64cb98-e4bc-40dd-87ac-20cab13d30e9"
+        },
+        {
+          "name": "_gcl_ls",
+          "value": "{\"schema\":\"gcl\",\"version\":1,\"gcl_ctr\":{\"value\":{\"value\":0,\"timeouts\":0,\"creationTimeMs\":1761465761353},\"expires\":1769241761353}}"
+        },
+        {
+          "name": "current_visit_date",
+          "value": "26.10.2025"
+        },
+        {
+          "name": "trackUserSession",
+          "value": "{\"sessionId\":\"f95b04ad-ed0f-4645-a9b4-6fda811e26e8\",\"sessionNumber\":1,\"lastActivity\":1761465760737}"
+        }
+      ]
+    }
+  ]
+}
