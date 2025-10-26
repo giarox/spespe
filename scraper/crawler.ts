@@ -14,7 +14,8 @@ async function runAdapter(adapter: ChainAdapter) {
     const flyers = await adapter.discover({ browser, supabase, logger });
     logger.info("adapter:discovered", { chain: adapter.name, count: flyers.length });
 
-    for (const flyer of flyers) {
+    const maxFlyers = Number(process.env.LIDL_MAX_FLYERS ?? flyers.length);
+    for (const flyer of flyers.slice(0, maxFlyers)) {
       try {
         logger.info("flyer:capture", { chain: adapter.name, url: flyer.url });
         const capture = await adapter.capture({ browser, supabase, logger }, flyer);
