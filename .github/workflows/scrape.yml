@@ -32,7 +32,8 @@ jobs:
       - name: Write storage state
         if: ${{ env.LIDL_STORAGE_STATE_B64 != '' }}
         working-directory: scraper
-        run: echo "$LIDL_STORAGE_STATE_B64" | base64 -d > lidl-storage.json
+        run: |
+          printf '%s' "$LIDL_STORAGE_STATE_B64" | tr -d '\n\r ' | base64 -d > lidl-storage.json
       - name: Run scraper
         working-directory: scraper
         env:
