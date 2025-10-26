@@ -79,15 +79,14 @@ async function waitForHighResImage(page: import("playwright").Page, pageNo: numb
     }));
     logger.info("lidl: page image status", { pageNo, attempt, info });
     if (info.src && info.loaded && info.width > 0) {
-      const hiRes = info.src.replace(/rs:fit:\d+:\d+:\d+/, "rs:fit:2400:2400:1");
-      logger.info("lidl: page image ready", { pageNo, hiRes });
-      return hiRes;
+      logger.info("lidl: page image ready", { pageNo, src: info.src });
+      return info.src;
     }
     await page.waitForTimeout(WAIT_UPGRADE_MS);
   }
   const fallback = await locator.first().getAttribute("src");
   logger.warn("lidl: using fallback src", { pageNo, fallback });
-  return fallback ? fallback.replace(/rs:fit:\d+:\d+:\d+/, "rs:fit:2400:2400:1") : null;
+  return fallback ?? null;
 }
 
 async function clickNext(page: import("playwright").Page) {
