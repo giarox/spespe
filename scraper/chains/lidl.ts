@@ -4,7 +4,7 @@ import { extractPublicationIdFromImage } from "../lib/flyer";
 import { hashString } from "../lib/hash";
 import type { AdapterContext, CaptureResult, ChainAdapter, FlyerCandidate, PageImage } from "../lib/types";
 
-const HUB_URL = process.env.LIDL_HUB_URL ?? "https://www.lidl.it/volantini";
+const HUB_URL = process.env.LIDL_HUB_URL ?? "https://www.lidl.it/c/volantino-lidl/s10018048";
 const MAX_PAGES = Number(process.env.LIDL_MAX_PAGES ?? 60);
 const WAIT_UPGRADE_MS = Number(process.env.LIDL_WAIT_MS ?? 500);
 
@@ -13,10 +13,15 @@ const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
 
 async function createContext(browser: Browser) {
-  return browser.newContext({
+  const storageStatePath = process.env.LIDL_STORAGE_STATE;
+  const options: Parameters<Browser["newContext"]>[0] = {
     locale: "it-IT",
     userAgent: USER_AGENT,
-  });
+  };
+  if (storageStatePath) {
+    options.storageState = storageStatePath;
+  }
+  return browser.newContext(options);
 }
 
 async function discover({ browser, logger }: AdapterContext): Promise<FlyerCandidate[]> {
@@ -116,8 +121,9 @@ async function dismissOverlay(page: import("playwright").Page) {
 }
 
 async function capturePages(ctx: AdapterContext, flyer: FlyerCandidate): Promise<CaptureResult> {
-  const context = await createContext(ctx.browser);
-  const page = await context.newPage();
+const context = await createContext(ctx.browser);
+const page = await context.newPage();
+ctx.logger.info("lidl: storage", { state: process.env.LIDL_STORAGE_STATE ? "loaded" : "empty" });
   ctx.logger.info("lidl: loading flyer", { url: flyer.url });
   await page.goto(flyer.url, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await dismissOverlay(page);
