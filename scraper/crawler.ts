@@ -37,7 +37,10 @@ async function runAdapter(adapter: ChainAdapter) {
       } catch (error) {
         logger.error("flyer:error", {
           url: flyer.url,
-          error: error instanceof Error ? error.message : String(error),
+          error:
+            error instanceof Error
+              ? { message: error.message, stack: error.stack }
+              : error,
         });
       }
     }
