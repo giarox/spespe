@@ -66,22 +66,27 @@ async function discover({ browser, logger }: AdapterContext): Promise<FlyerCandi
 
 const PAGE_IMG_SELECTOR = "section.maincontent section.sheetgesture .sheet .sheet__list li.page.page--current .page__wrapper > img.img";
 
-async function waitForHighResImage(page: import("playwright").Page) {
+async function waitForHighResImage(page: import("playwright").Page, pageNo: number, logger: Logger) {
   const locator = page.locator(PAGE_IMG_SELECTOR);
   await locator.first().waitFor({ state: "visible", timeout: 30_000 });
-  await page.locator(".page--current .page__wrapper .loading").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => null);
+  await page.locator(".page--current .page__wrapper .loading").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => logger.warn("lidl: spinner still visible", { pageNo }));
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const info = await locator.first().evaluate((el) => ({
       src: el.getAttribute("src") ?? "",
       loaded: el.complete,
       width: el.naturalWidth,
+      height: el.naturalHeight,
     }));
+    logger.info("lidl: page image status", { pageNo, attempt, info });
     if (info.src && info.loaded && info.width > 0) {
-      return info.src.replace(/rs:fit:\d+:\d+:\d+/, "rs:fit:2400:2400:1");
+      const hiRes = info.src.replace(/rs:fit:\d+:\d+:\d+/, "rs:fit:2400:2400:1");
+      logger.info("lidl: page image ready", { pageNo, hiRes });
+      return hiRes;
     }
     await page.waitForTimeout(WAIT_UPGRADE_MS);
   }
   const fallback = await locator.first().getAttribute("src");
+  logger.warn("lidl: using fallback src", { pageNo, fallback });
   return fallback ? fallback.replace(/rs:fit:\d+:\d+:\d+/, "rs:fit:2400:2400:1") : null;
 }
 
@@ -131,7 +136,7 @@ ctx.logger.info("lidl: storage", { state: process.env.LIDL_STORAGE_STATE ? "load
 
   for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo += 1) {
     await dismissOverlay(page);
-    const src = await waitForHighResImage(page);
+    const src = await waitForHighResImage(page, pageNo, ctx.logger);
     if (!src) break;
     const imgHash = hashString(src);
     if (seenHashes.has(imgHash)) break;
