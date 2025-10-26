@@ -14,9 +14,11 @@ const USER_AGENT =
 
 async function createContext(browser: Browser) {
   const storageStatePath = process.env.LIDL_STORAGE_STATE;
+  const deviceScaleFactor = Number(process.env.LIDL_DEVICE_SCALE_FACTOR ?? 1);
   const options: Parameters<Browser["newContext"]>[0] = {
     locale: "it-IT",
     userAgent: USER_AGENT,
+    deviceScaleFactor,
   };
   if (storageStatePath) {
     options.storageState = storageStatePath;
