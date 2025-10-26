@@ -86,8 +86,11 @@ async function dismissOverlay(page: import("playwright").Page) {
   const consentButton = page.locator("#onetrust-accept-btn-handler, button[aria-label*='Accetta']");
   if (await consentButton.count()) {
     try {
-      await consentButton.first().click({ timeout: 5_000 });
-      await page.waitForTimeout(300);
+      const elementHandle = await consentButton.first().elementHandle();
+      if (elementHandle) {
+        await page.evaluate((el) => (el as HTMLElement).click(), elementHandle);
+        await page.waitForTimeout(300);
+      }
     } catch {
       // ignore
     }
