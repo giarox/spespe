@@ -64,29 +64,25 @@ async function discover({ browser, logger }: AdapterContext): Promise<FlyerCandi
   return candidates;
 }
 
+const PAGE_IMG_SELECTOR = "section.maincontent section.sheetgesture .sheet .sheet__list li.page.page--current .page__wrapper > img.img";
+
 async function waitForHighResImage(page: import("playwright").Page) {
-  const locator = page.locator(".page--current .page__wrapper img");
+  const locator = page.locator(PAGE_IMG_SELECTOR);
   await locator.first().waitFor({ state: "visible", timeout: 30_000 });
+  await page.locator(".page--current .page__wrapper .loading").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => null);
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const src = await locator.first().getAttribute("src");
-    if (src && src.includes("rs:fit:2400")) {
-      return src;
-    }
-    const dataSrc = await locator.first().getAttribute("data-src");
-    if (dataSrc) {
-      const handle = await locator.first().elementHandle();
-      if (handle) {
-        await page.evaluate((el, desired) => {
-          const img = el as HTMLImageElement;
-          if (img.dataset.src) {
-            img.src = img.dataset.src.replace("rs:fit:1200", desired);
-          }
-        }, handle, "rs:fit:2400");
-      }
+    const info = await locator.first().evaluate((el) => ({
+      src: el.getAttribute("src") ?? "",
+      loaded: el.complete,
+      width: el.naturalWidth,
+    }));
+    if (info.src && info.loaded && info.width > 0) {
+      return info.src.replace(/rs:fit:\d+:\d+:\d+/, "rs:fit:2400:2400:1");
     }
     await page.waitForTimeout(WAIT_UPGRADE_MS);
   }
-  return locator.first().getAttribute("src");
+  const fallback = await locator.first().getAttribute("src");
+  return fallback ? fallback.replace(/rs:fit:\d+:\d+:\d+/, "rs:fit:2400:2400:1") : null;
 }
 
 async function clickNext(page: import("playwright").Page) {
