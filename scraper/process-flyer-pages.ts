@@ -28,6 +28,8 @@ type ExtractedOffer = {
   discountText: string | null;
 };
 
+const OCR_LANGS = process.env.LIDL_OCR_LANGS ?? "eng";
+
 const PRICE_REGEX = /(?:€|\b)\s*(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})\b/;
 const DISCOUNT_REGEX = /\b(sconto|offerta|risparmio|promo|-\d{1,2}%|\d{1,2}%|\d+x\d+)\b/i;
 const DEFAULT_BATCH_SIZE = Number(process.env.LIDL_OCR_BATCH ?? 3);
@@ -85,16 +87,8 @@ async function preprocessImage(buffer: Buffer): Promise<Buffer> {
 }
 
 async function createOcrWorker() {
-  const worker = await createWorker({
-    logger: (m) => {
-      if (m.status === "recognizing text") {
-        logger.info("ocr:progress", { progress: Number(m.progress.toFixed(2)) });
-      }
-    },
-  });
-  await worker.load();
-  await worker.loadLanguage("ita+eng");
-  await worker.initialize("ita+eng");
+  const worker = await createWorker();
+  await worker.reinitialize(OCR_LANGS);
   await worker.setParameters({
     tessedit_pageseg_mode: PSM.AUTO,
     preserve_interword_spaces: "1",
@@ -315,6 +309,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  logger.error("ocr:fatal", { error: error instanceof Error ? error.stack : String(error) });
+  logger.error("ocr:fatal", {
+    error: error instanceof Error ? error.stack : JSON.stringify(error),
+  });
   process.exit(1);
 });
