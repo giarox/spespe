@@ -189,7 +189,7 @@ async function fetchCandidatePages(supabase: Supabase, batchSize: number): Promi
   logger.info("ocr:fetch:start", { batchSize });
   const pageResponse = await supabase
     .from("flyer_pages")
-    .select("id, flyer_id, page_no, image_url, flyer:flyers(id, chain_id), processing:flyer_page_processing(status)")
+    .select("id, flyer_id, page_no, image_url, flyer:flyers(id, chain_id)")
     .not("image_url", "is", null)
     .order("created_at", { ascending: false })
     .limit(batchSize * 5);
@@ -199,35 +199,50 @@ async function fetchCandidatePages(supabase: Supabase, batchSize: number): Promi
     throw pageResponse.error;
   }
 
-  const pages = (pageResponse.data ?? []) as Array<
-    FlyerPageRecord & { processing: { status: string | null }[] | null }
-  >;
+  const pages = (pageResponse.data ?? []) as FlyerPageRecord[];
   if (!pages.length) {
     logger.info("ocr:fetch:empty");
     return [];
   }
 
+  const ids = pages.map((page) => page.id);
+  const statusResponse = await supabase
+    .from("flyer_page_processing")
+    .select("flyer_page_id, status")
+    .in("flyer_page_id", ids);
+
+  if (statusResponse.error) {
+    logger.error("ocr:fetch:status-error", { error: statusResponse.error.message });
+    throw statusResponse.error;
+  }
+
+  const statusMap = new Map<string, string | null>();
+  (statusResponse.data ?? []).forEach((row) => {
+    statusMap.set(row.flyer_page_id, row.status ?? null);
+  });
+
   const candidates = pages
-    .map((page) => {
-      const status = page.processing?.[0]?.status ?? null;
-      return { ...page, status };
+    .filter((page) => {
+      const status = statusMap.get(page.id) ?? null;
+      return status !== "ok" && status !== "processing";
     })
-    .filter((page) => page.status !== "ok" && page.status !== "processing")
     .slice(0, batchSize);
 
-  if (candidates.length) {
-    logger.info("ocr:fetch:lock", { candidate_ids: candidates.map((p) => p.id) });
-    const lockPayload = candidates.map((page) => ({
-      flyer_page_id: page.id,
-      status: "processing",
-      processed_at: new Date().toISOString(),
-    }));
-    const lockResponse = await supabase
-      .from("flyer_page_processing")
-      .upsert(lockPayload, { onConflict: "flyer_page_id" });
-    if (lockResponse.error) {
-      logger.error("ocr:fetch:lock-error", { error: lockResponse.error.message });
-    }
+  if (!candidates.length) {
+    logger.info("ocr:fetch:no-candidates");
+    return [];
+  }
+
+  const lockPayload = candidates.map((page) => ({
+    flyer_page_id: page.id,
+    status: "processing",
+    processed_at: new Date().toISOString(),
+  }));
+  const lockResponse = await supabase
+    .from("flyer_page_processing")
+    .upsert(lockPayload, { onConflict: "flyer_page_id" });
+  if (lockResponse.error) {
+    logger.error("ocr:fetch:lock-error", { error: lockResponse.error.message });
   }
 
   logger.info("ocr:fetch:ok", {
