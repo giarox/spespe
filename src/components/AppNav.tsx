@@ -19,6 +19,9 @@ export default async function AppNav() {
             <Link href="/search" className="hover:underline">
               Cerca offerte
             </Link>
+            <Link href="/flyers" className="hover:underline">
+              Volantini
+            </Link>
             {user && (
               <>
                 <Link href="/lista" className="hover:underline">
