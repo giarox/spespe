@@ -5,7 +5,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 import sharp from "sharp";
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createWorker, PSM } from "tesseract.js";
 
@@ -122,11 +122,8 @@ type NormalisedOffer = {
 
 ensureCacheDir();
 
-const genAI = new GoogleGenerativeAI({
+const genAI = new GoogleGenAI({
   apiKey: GEMINI_API_KEY,
-});
-const model = genAI.getGenerativeModel({
-  model: MODEL_NAME,
 });
 
 function ensureCacheDir() {
@@ -317,17 +314,19 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
 
   checkQuota();
 
-  const result = await model.generateContent({
+  const result = await genAI.models.generateContent({
+    model: MODEL_NAME,
     contents: [
       {
         role: "user",
-        parts: [
-          { text: SYSTEM_PROMPT },
-          { inlineData: { mimeType: "image/jpeg", data: base64 } },
-        ],
+        parts: [{ inlineData: { mimeType: "image/jpeg", data: base64 } }],
       },
     ],
-    generationConfig: {
+    config: {
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: SYSTEM_PROMPT }],
+      },
       temperature: 0.1,
       topP: 0.8,
       topK: 32,
@@ -337,7 +336,7 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
     },
   });
 
-  const text = result.response?.text();
+  const text = result.text;
   if (!text) {
     throw new Error("Empty response from Gemini");
   }

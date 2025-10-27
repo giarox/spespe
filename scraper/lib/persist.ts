@@ -85,11 +85,22 @@ export async function persistFlyerRun(options: {
       width: page.width ?? null,
       height: page.height ?? null,
     }));
-    const { error: pagesError } = await supabase
+    const { data: upsertedPages, error: pagesError } = await supabase
       .from("flyer_pages")
-      .upsert(pageRows, { onConflict: "flyer_id,page_no" });
+      .upsert(pageRows, { onConflict: "flyer_id,page_no" })
+      .select("id, page_no, image_hash");
     if (pagesError) {
       throw pagesError;
+    }
+
+    if (upsertedPages && upsertedPages.length > 0) {
+      const { error: resetError } = await supabase
+        .from("flyer_page_processing")
+        .delete()
+        .in("flyer_page_id", upsertedPages.map((row) => row.id));
+      if (resetError) {
+        throw resetError;
+      }
     }
   }
 
