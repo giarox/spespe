@@ -41,12 +41,12 @@ jobs:
         run: |
           export LIDL_STORAGE_STATE=lidl-storage.json
           pnpm start
-      - name: Extract offers via OCR
+      - name: Extract offers via Gemini
         working-directory: scraper
         env:
           SUPABASE_URL: ${{ env.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE: ${{ env.SUPABASE_SERVICE_ROLE }}
-          GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           LIDL_GEMINI_MODEL: gemini-2.5-flash-lite-preview
           LIDL_GEMINI_BATCH: 4
         run: pnpm process:lidl

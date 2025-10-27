@@ -61,7 +61,7 @@ pnpm process:lidl -- --limit=3
 ```
 
 - Uses Google Gemini (vision) to extract offer metadata with richer heuristics.
-- Requires `GOOGLE_GEMINI_API_KEY` set to a valid API key.
+- Requires `GEMINI_API_KEY` set to a valid API key.
 - Results are inserted into `flyer_page_offers_raw` and the processing status is logged in `flyer_page_processing`.
 - Runs are idempotent: each page is processed once unless you delete/reset the log table.
 
