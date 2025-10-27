@@ -212,8 +212,23 @@ async function fetchCandidatePages(supabase: Supabase, batchSize: number): Promi
       const status = page.processing?.[0]?.status ?? null;
       return { ...page, status };
     })
-    .filter((page) => page.status !== "ok")
+    .filter((page) => page.status !== "ok" && page.status !== "processing")
     .slice(0, batchSize);
+
+  if (candidates.length) {
+    logger.info("ocr:fetch:lock", { candidate_ids: candidates.map((p) => p.id) });
+    const lockPayload = candidates.map((page) => ({
+      flyer_page_id: page.id,
+      status: "processing",
+      processed_at: new Date().toISOString(),
+    }));
+    const lockResponse = await supabase
+      .from("flyer_page_processing")
+      .upsert(lockPayload, { onConflict: "flyer_page_id" });
+    if (lockResponse.error) {
+      logger.error("ocr:fetch:lock-error", { error: lockResponse.error.message });
+    }
+  }
 
   logger.info("ocr:fetch:ok", {
     fetched: pages.length,
