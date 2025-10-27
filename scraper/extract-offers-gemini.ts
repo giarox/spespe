@@ -18,7 +18,7 @@ if (!GEN_AI_KEY) {
 
 const DEFAULT_BATCH_SIZE = Number(process.env.LIDL_GEMINI_BATCH ?? 3);
 const MAX_IMAGE_WIDTH = Number(process.env.LIDL_GEMINI_WIDTH ?? 1536);
-const MODEL_NAME = process.env.LIDL_GEMINI_MODEL ?? "gemini-1.5-flash-latest";
+const MODEL_NAME = process.env.LIDL_GEMINI_MODEL ?? "gemini-2.5-flash-lite-preview";
 
 type FlyerPageRecord = Database["public"]["Tables"]["flyer_pages"]["Row"] & {
   flyer: {
