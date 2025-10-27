@@ -183,6 +183,95 @@ export type Database = {
           },
         ]
       }
+      flyer_page_offers_raw: {
+        Row: {
+          brand: string | null
+          created_at: string | null
+          currency: string | null
+          detected_at: string | null
+          flyer_id: string | null
+          flyer_page_id: string | null
+          id: string
+          metadata: Json | null
+          page_no: number
+          price: number
+          product_name: string
+        }
+        Insert: {
+          brand?: string | null
+          created_at?: string | null
+          currency?: string | null
+          detected_at?: string | null
+          flyer_id?: string | null
+          flyer_page_id?: string | null
+          id?: string
+          metadata?: Json | null
+          page_no: number
+          price: number
+          product_name: string
+        }
+        Update: {
+          brand?: string | null
+          created_at?: string | null
+          currency?: string | null
+          detected_at?: string | null
+          flyer_id?: string | null
+          flyer_page_id?: string | null
+          id?: string
+          metadata?: Json | null
+          page_no?: number
+          price?: number
+          product_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flyer_page_offers_raw_flyer_id_fkey"
+            columns: ["flyer_id"]
+            isOneToOne: false
+            referencedRelation: "flyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flyer_page_offers_raw_flyer_page_id_fkey"
+            columns: ["flyer_page_id"]
+            isOneToOne: false
+            referencedRelation: "flyer_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flyer_page_processing: {
+        Row: {
+          flyer_page_id: string
+          notes: string | null
+          offers_found: number | null
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          flyer_page_id: string
+          notes?: string | null
+          offers_found?: number | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          flyer_page_id?: string
+          notes?: string | null
+          offers_found?: number | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flyer_page_processing_flyer_page_id_fkey"
+            columns: ["flyer_page_id"]
+            isOneToOne: true
+            referencedRelation: "flyer_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_items: {
         Row: {
           id: string

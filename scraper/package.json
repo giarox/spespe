@@ -6,13 +6,19 @@
   "scripts": {
     "start": "tsx crawler.ts",
     "lint": "tsc --noEmit",
-    "test": "tsx --test"
+    "test": "tsx --test",
+    "process:lidl": "tsx process-flyer-pages.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
     "dotenv": "^16.4.7",
     "p-limit": "^5.0.0",
     "playwright": "^1.48.2",
+    "sharp": "^0.34.4",
+    "tesseract.js": "^5.1.4",
     "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/sharp": "^0.31.5"
   }
 }
