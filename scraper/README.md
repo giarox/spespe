@@ -64,6 +64,17 @@ pnpm process:lidl -- --limit=3
 - Results are inserted into `flyer_page_offers_raw` and the processing status is logged in `flyer_page_processing`.
 - Runs are idempotent: each page is processed once unless you delete/reset the log table.
 
+### Ingest extracted offers into the main catalog
+
+```bash
+cd scraper
+pnpm ingest:lidl
+```
+
+- Reads pending rows from `flyer_page_offers_raw`.
+- Upserts deduplicated offers into `offers` (unique on `flyer_id + product_name + price`).
+- Marks each raw row as ingested so subsequent runs only process new data.
+
 ## Next steps (tracked in code TODOs)
 
 - Improve OCR segmentation (box detection, multi-line grouping) to raise precision/recall.

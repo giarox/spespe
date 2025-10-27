@@ -191,6 +191,8 @@ export type Database = {
           detected_at: string | null
           flyer_id: string | null
           flyer_page_id: string | null
+          ingested_at: string | null
+          ingested_offer_id: string | null
           id: string
           metadata: Json | null
           page_no: number
@@ -204,6 +206,8 @@ export type Database = {
           detected_at?: string | null
           flyer_id?: string | null
           flyer_page_id?: string | null
+          ingested_at?: string | null
+          ingested_offer_id?: string | null
           id?: string
           metadata?: Json | null
           page_no: number
@@ -217,6 +221,8 @@ export type Database = {
           detected_at?: string | null
           flyer_id?: string | null
           flyer_page_id?: string | null
+          ingested_at?: string | null
+          ingested_offer_id?: string | null
           id?: string
           metadata?: Json | null
           page_no?: number
@@ -236,6 +242,13 @@ export type Database = {
             columns: ["flyer_page_id"]
             isOneToOne: false
             referencedRelation: "flyer_pages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flyer_page_offers_raw_ingested_offer_id_fkey"
+            columns: ["ingested_offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
             referencedColumns: ["id"]
           },
         ]

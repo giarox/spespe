@@ -4,6 +4,21 @@ import sharp from "sharp";
 import { createWorker, PSM, type Line, type RecognizeResult } from "tesseract.js";
 import { SupabaseClient } from "@supabase/supabase-js";
 
+function withTimeout<T>(promise: Promise<T>, ms: number, context: Record<string, unknown>): Promise<T> {
+  let timer: NodeJS.Timeout;
+  return Promise.race([
+    promise.finally(() => clearTimeout(timer))
+  , new Promise<T>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error(`Timeout after ${ms}ms`));
+      }, ms);
+    })
+  ]).catch((error) => {
+    logger.error("ocr:timeout", { ...context, error: error instanceof Error ? error.message : String(error) });
+    throw error;
+  });
+}
+
 import { createServiceClient } from "./lib/supabase";
 import { logger } from "./lib/logger";
 import type { Database, Json } from "../src/lib/database.types";
@@ -69,26 +84,37 @@ function offerKey(name: string, price: number): string {
 }
 
 async function downloadImage(url: string): Promise<Buffer> {
-  const response = await fetch(url, { headers: { "User-Agent": "spespe-ocr/1.0" } });
+  logger.info("ocr:download:start", { url });
+  const response = await withTimeout(
+    fetch(url, { headers: { "User-Agent": "spespe-ocr/1.0" } }),
+    30_000,
+    { stage: "download", url }
+  );
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} while fetching ${url}`);
   }
   const arrayBuffer = await response.arrayBuffer();
+  logger.info("ocr:download:ok", { url, size: arrayBuffer.byteLength });
   return Buffer.from(arrayBuffer);
 }
 
 async function preprocessImage(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
+  logger.info("ocr:preprocess:start", { size: buffer.length });
+  const out = await sharp(buffer)
     .resize({ width: 1600, withoutEnlargement: true })
     .greyscale()
     .normalise()
     .sharpen()
     .toBuffer();
+  logger.info("ocr:preprocess:ok", { size: out.length });
+  return out;
 }
 
 async function createOcrWorker() {
   const worker = await createWorker();
-  await worker.reinitialize(OCR_LANGS);
+  logger.info("ocr:worker:reinitialize", { langs: OCR_LANGS });
+  await withTimeout(worker.reinitialize(OCR_LANGS), 60_000, { stage: "reinitialize", langs: OCR_LANGS });
+  logger.info("ocr:worker:reinitialize:ok", { langs: OCR_LANGS });
   await worker.setParameters({
     tessedit_pageseg_mode: PSM.AUTO,
     preserve_interword_spaces: "1",
@@ -160,41 +186,42 @@ function extractOffers(data: RecognizeResult["data"]): ExtractedOffer[] {
 }
 
 async function fetchCandidatePages(supabase: Supabase, batchSize: number): Promise<FlyerPageRecord[]> {
+  logger.info("ocr:fetch:start", { batchSize });
   const pageResponse = await supabase
     .from("flyer_pages")
-    .select("id, flyer_id, page_no, image_url, flyer:flyers(id, chain_id)")
+    .select("id, flyer_id, page_no, image_url, flyer:flyers(id, chain_id), processing:flyer_page_processing(status)")
     .not("image_url", "is", null)
     .order("created_at", { ascending: false })
     .limit(batchSize * 5);
 
   if (pageResponse.error) {
+    logger.error("ocr:fetch:error", { error: pageResponse.error.message });
     throw pageResponse.error;
   }
 
-  const pages = (pageResponse.data ?? []) as FlyerPageRecord[];
-  if (!pages.length) return [];
-
-  const ids = pages.map((page) => page.id);
-  const statusResponse = await supabase
-    .from("flyer_page_processing")
-    .select("flyer_page_id, status")
-    .in("flyer_page_id", ids);
-
-  if (statusResponse.error) {
-    throw statusResponse.error;
+  const pages = (pageResponse.data ?? []) as Array<
+    FlyerPageRecord & { processing: { status: string | null }[] | null }
+  >;
+  if (!pages.length) {
+    logger.info("ocr:fetch:empty");
+    return [];
   }
 
-  const statusMap = new Map<string, string | null>();
-  (statusResponse.data ?? []).forEach((row) => {
-    statusMap.set(row.flyer_page_id, row.status ?? null);
+  const candidates = pages
+    .map((page) => {
+      const status = page.processing?.[0]?.status ?? null;
+      return { ...page, status };
+    })
+    .filter((page) => page.status !== "ok")
+    .slice(0, batchSize);
+
+  logger.info("ocr:fetch:ok", {
+    fetched: pages.length,
+    candidates: candidates.length,
+    candidate_ids: candidates.map((p) => p.id),
   });
 
-  const candidates = pages.filter((page) => {
-    const status = statusMap.get(page.id);
-    return status !== "ok";
-  });
-
-  return candidates.slice(0, batchSize);
+  return candidates;
 }
 
 async function markProcessing(
@@ -235,12 +262,28 @@ async function processFlyerPage(
   }
 
   try {
-    logger.info("ocr:page:start", { flyer_page_id: page.id, page_no: page.page_no, image_url: page.image_url });
+    logger.info("ocr:page:start", {
+      flyer_page_id: page.id,
+      page_no: page.page_no,
+      image_url: page.image_url,
+      flyer_id: page.flyer_id,
+    });
 
     const originalImage = await downloadImage(page.image_url);
     const processedImage = await preprocessImage(originalImage);
 
-    const result = await worker.recognize(processedImage);
+    logger.info("ocr:recognize:start", { flyer_page_id: page.id });
+    const result = await withTimeout(worker.recognize(processedImage), 5 * 60_000, {
+      stage: "recognize",
+      flyer_page_id: page.id,
+    });
+    logger.info("ocr:recognize:ok", {
+      flyer_page_id: page.id,
+      text_snippet: result.data?.text?.slice(0, 120) ?? "",
+      lines: result.data?.lines?.length ?? 0,
+      confidence: result.data?.confidence ?? 0,
+    });
+
     const offers = extractOffers(result.data);
 
     if (offers.length) {
@@ -276,11 +319,22 @@ async function processFlyerPage(
     }
 
     await markProcessing(supabase, page.id, offers.length ? "ok" : "empty", offers.length);
-    logger.info("ocr:page:done", { flyer_page_id: page.id, offers_found: offers.length });
+    logger.info("ocr:page:done", {
+      flyer_page_id: page.id,
+      offers_found: offers.length,
+      sample_offers: offers.slice(0, 2).map((offer) => ({
+        product_name: offer.productName,
+        price: offer.price,
+      })),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await markProcessing(supabase, page.id, "failed", 0, message);
-    logger.error("ocr:page:error", { flyer_page_id: page.id, error: message });
+    logger.error("ocr:page:error", {
+      flyer_page_id: page.id,
+      error: message,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 

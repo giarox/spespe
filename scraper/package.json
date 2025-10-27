@@ -7,7 +7,8 @@
     "start": "tsx crawler.ts",
     "lint": "tsc --noEmit",
     "test": "tsx --test",
-    "process:lidl": "tsx process-flyer-pages.ts"
+    "process:lidl": "tsx process-flyer-pages.ts",
+    "ingest:lidl": "tsx ingest-offers.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
