@@ -224,7 +224,7 @@ async function fetchCandidatePages(supabase: Supabase, batchSize: number): Promi
   const candidates = pages
     .filter((page) => {
       const status = statusMap.get(page.id) ?? null;
-      return status !== "ok" && status !== "processing";
+      return !["ok", "processing", "empty", "skipped"].includes(status ?? "");
     })
     .slice(0, batchSize);
 
