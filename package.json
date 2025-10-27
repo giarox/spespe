@@ -10,7 +10,8 @@
     "env:set": "ts-node scripts/env-set.ts",
     "env:print": "ts-node scripts/print-env.ts",
     "access:discover": "ts-node scripts/discover-access.ts",
-    "access:check": "ts-node scripts/access/check-access.ts"
+    "access:check": "ts-node scripts/access/check-access.ts",
+    "handoff:update": "ts-node scripts/handoff/update.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
