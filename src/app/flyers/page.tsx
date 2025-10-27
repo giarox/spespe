@@ -1,5 +1,3 @@
-import Link from "next/link";
-import Image from "next/image";
 import { createServer } from "@/lib/supabase/server";
 
 type FlyerWithPages = {
@@ -61,7 +59,8 @@ export default async function FlyersPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">Ultimi volantini</h1>
         <p className="text-gray-600">
-          Ogni pagina è presa dal viewer ufficiale Lidl a 2400px. Clicca su un volantino per aprire tutti i dettagli.
+          Qui trovi gli ultimi volantini rilevati con i relativi metadati. Per il contenuto completo apri il viewer
+          ufficiale di Lidl: le immagini restano ospitate sui loro server e non vengono cache-ate da Spespe.
         </p>
       </header>
 
@@ -83,6 +82,14 @@ export default async function FlyersPage() {
                     <p className="text-sm text-gray-500">
                       Caricato il {new Intl.DateTimeFormat("it-IT", { dateStyle: "medium" }).format(new Date(flyer.fetched_at))}
                     </p>
+                    <p className="text-xs text-gray-500">
+                      Pagine indicizzate: {(flyer.flyer_pages ?? []).length || "n/d"}
+                    </p>
+                    {flyer.viewer_url && (
+                      <p className="text-xs text-gray-400 break-all">
+                        URL viewer: {flyer.viewer_url}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-3 text-sm">
                     {flyer.viewer_url && (
@@ -95,41 +102,25 @@ export default async function FlyersPage() {
                         Apri viewer originale
                       </a>
                     )}
-                    <Link
-                      href={`/flyers/${flyer.id}`}
-                      className="rounded border px-3 py-1 hover:bg-gray-50"
-                    >
-                      Dettagli
-                    </Link>
                   </div>
                 </div>
 
-                {pages.length === 0 ? (
-                  <p className="text-sm text-gray-500">Pagine non ancora disponibili.</p>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-                    {pages.slice(0, 4).map((page) => (
-                      <div key={page.page_no} className="overflow-hidden rounded border bg-white shadow-sm">
-                        <div className="relative aspect-[3/4]">
-                          <Image
-                            src={page.image_url}
-                            alt={`Pagina ${page.page_no}`}
-                            fill
-                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
-                            priority={false}
-                            className="object-cover"
-                            unoptimized
-                          />
-                        </div>
-                        <div className="flex items-center justify-between px-3 py-2 text-xs text-gray-600">
-                          <span>Pagina {page.page_no}</span>
-                          <span>
-                            {page.width && page.height ? `${page.width}×${page.height}` : "dimensioni n/d"}
+                {pages.length > 0 ? (
+                  <div className="rounded border bg-white px-4 py-3 text-sm text-gray-600 shadow-sm">
+                    <p className="font-medium text-gray-700">Pagine rilevate</p>
+                    <ul className="mt-2 flex flex-wrap gap-3">
+                      {pages.map((page) => (
+                        <li key={page.page_no} className="rounded bg-gray-100 px-2 py-1">
+                          Pagina {page.page_no}{" "}
+                          <span className="text-xs text-gray-500">
+                            {page.width && page.height ? `${page.width}×${page.height}px` : "dim. n/d"}
                           </span>
-                        </div>
-                      </div>
-                    ))}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Pagine non ancora disponibili.</p>
                 )}
               </section>
             );

@@ -16,7 +16,23 @@ export default function RootLayout({
     <html lang="it">
       <body className="antialiased bg-[var(--background)] text-[var(--foreground)]">
         <AppNav />
-        {children}
+        <div className="min-h-[calc(100vh-160px)]">{children}</div>
+        <footer className="border-t bg-gray-50 px-4 py-6 text-xs text-gray-600">
+          <div className="mx-auto flex max-w-5xl flex-col gap-2">
+            <p>
+              Le immagini e i volantini appartengono ai rispettivi titolari &mdash; in particolare Lidl Italia
+              S.r.l. a socio unico (&quot;All rights reserved&quot;). Spespe mostra soltanto metadati e link verso
+              i viewer ufficiali senza memorizzare copie locali.
+            </p>
+            <p>
+              In caso di richieste di rimozione o chiarimenti sui contenuti, scrivi a{" "}
+              <a className="underline" href="mailto:legal@spespe.app">
+                legal@spespe.app
+              </a>
+              .
+            </p>
+          </div>
+        </footer>
       </body>
     </html>
   );
