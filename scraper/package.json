@@ -19,6 +19,6 @@
     "tsx": "^4.19.2"
   },
   "devDependencies": {
-    "@types/sharp": "^0.31.5"
+    "@types/sharp": "^0.32.0"
   }
 }
