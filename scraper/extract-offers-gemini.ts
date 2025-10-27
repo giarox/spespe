@@ -5,7 +5,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 import sharp from "sharp";
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createWorker, PSM } from "tesseract.js";
 
@@ -25,6 +25,7 @@ const MAX_IMAGE_WIDTH = Number(process.env.LIDL_GEMINI_WIDTH ?? 3000);
 const MODEL_NAME = process.env.LIDL_GEMINI_MODEL ?? "gemini-2.5-flash-lite-preview";
 const DEFAULT_BATCH_SIZE = Number(process.env.LIDL_GEMINI_BATCH ?? 3);
 const MAX_CALLS_PER_DAY = Number(process.env.LIDL_GEMINI_MAX_CALLS ?? 200);
+const GEMINI_API_VERSION = process.env.LIDL_GEMINI_API_VERSION ?? "v1alpha";
 const CACHE_DIR = path.join(process.cwd(), ".cache", "gemini");
 const USAGE_FILE = path.join(CACHE_DIR, "usage.json");
 
@@ -122,11 +123,9 @@ type NormalisedOffer = {
 
 ensureCacheDir();
 
-const genAI = new GoogleGenerativeAI({
+const genAI = new GoogleGenAI({
   apiKey: GEMINI_API_KEY,
-});
-const model = genAI.getGenerativeModel({
-  model: MODEL_NAME,
+  apiVersion: GEMINI_API_VERSION,
 });
 
 function ensureCacheDir() {
@@ -317,17 +316,19 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
 
   checkQuota();
 
-  const result = await model.generateContent({
+  const result = await genAI.models.generateContent({
+    model: MODEL_NAME,
     contents: [
       {
         role: "user",
-        parts: [
-          { text: SYSTEM_PROMPT },
-          { inlineData: { mimeType: "image/jpeg", data: base64 } },
-        ],
+        parts: [{ inlineData: { mimeType: "image/jpeg", data: base64 } }],
       },
     ],
-    generationConfig: {
+    config: {
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: SYSTEM_PROMPT }],
+      },
       temperature: 0.1,
       topP: 0.8,
       topK: 32,
@@ -337,7 +338,7 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
     },
   });
 
-  const text = result.response?.text();
+  const text = result.text;
   if (!text) {
     throw new Error("Empty response from Gemini");
   }
@@ -355,13 +356,7 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
 }
 
 async function tesseractFallback(buffer: Buffer): Promise<GeminiRawItem[]> {
-  const worker = await createWorker({
-    logger: (message) => {
-      if (message.status === "recognizing text") {
-        logger.info("tesseract:progress", { progress: message.progress });
-      }
-    },
-  });
+  const worker = await createWorker();
   await worker.load();
   await worker.loadLanguage("eng");
   await worker.initialize("eng");
