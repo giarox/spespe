@@ -3,7 +3,8 @@ name: scrape-lidl
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 * * * *'
+    # 07:00 Europe/Rome ≈ 05:00 UTC (runs once daily)
+    - cron: '0 5 * * *'
 
 jobs:
   run-scraper:
