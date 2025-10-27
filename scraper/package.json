@@ -7,11 +7,13 @@
     "start": "tsx crawler.ts",
     "lint": "tsc --noEmit",
     "test": "tsx --test",
-    "process:lidl": "tsx process-flyer-pages.ts",
+    "process:lidl": "tsx extract-offers-gemini.ts",
+    "process:lidl:ocr": "tsx process-flyer-pages.ts",
     "ingest:lidl": "tsx ingest-offers.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
+    "@google/generative-ai": "^0.7.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "@tesseract.js-data/ita": "^1.0.0",
     "dotenv": "^16.4.7",

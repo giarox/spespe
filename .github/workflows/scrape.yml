@@ -46,7 +46,9 @@ jobs:
         env:
           SUPABASE_URL: ${{ env.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE: ${{ env.SUPABASE_SERVICE_ROLE }}
-          LIDL_OCR_LANGS: eng
+          GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
+          LIDL_GEMINI_MODEL: gemini-1.5-flash-latest
+          LIDL_GEMINI_BATCH: 4
         run: pnpm process:lidl
       - name: Ingest offers into catalog
         working-directory: scraper

@@ -60,7 +60,8 @@ cd scraper
 pnpm process:lidl -- --limit=3
 ```
 
-- Uses Tesseract (ita+eng) via `tesseract.js` and `sharp` to normalise images.
+- Uses Google Gemini (vision) to extract offer metadata with richer heuristics.
+- Requires `GOOGLE_GEMINI_API_KEY` set to a valid API key.
 - Results are inserted into `flyer_page_offers_raw` and the processing status is logged in `flyer_page_processing`.
 - Runs are idempotent: each page is processed once unless you delete/reset the log table.
 
@@ -77,7 +78,7 @@ pnpm ingest:lidl
 
 ## Next steps (tracked in code TODOs)
 
-- Improve OCR segmentation (box detection, multi-line grouping) to raise precision/recall.
+- Iterate on Gemini prompt/schema to raise precision/recall.
 - Map extracted products to known stores/SKUs and hydrate the primary `offers` table.
 - Add store locator ingestion for Lidl and other chains.
-- Wire GitHub Action (`.github/workflows/scrape.yml`) to run the OCR step after the capture job stabilises.
+- Wire GitHub Action (`.github/workflows/scrape.yml`) to run the Gemini extract + ingestion steps (already configured).
