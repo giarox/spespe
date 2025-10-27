@@ -121,6 +121,40 @@ async function triggerZoom(page: import("playwright").Page, logger: Logger) {
   if (!triggered) {
     logger.warn("lidl: zoom trigger did not find any control, relying on keyboard");
   }
+
+  try {
+    const image = page.locator(PAGE_IMG_SELECTOR).first();
+    await image.waitFor({ state: "visible", timeout: 20_000 });
+    const box = await image.boundingBox();
+    if (box) {
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      await page.mouse.move(x, y, { steps: 5 });
+      await page.mouse.click(x, y, { delay: 50 });
+      await page.waitForTimeout(250);
+      const infoAfterSingleClick = await image.evaluate((el) => ({
+        width: (el as HTMLImageElement).naturalWidth,
+        height: (el as HTMLImageElement).naturalHeight,
+        src: (el as HTMLImageElement).src,
+      }));
+      logger.info("lidl: single click zoom probe", infoAfterSingleClick);
+      if (!isHighResUrl(infoAfterSingleClick.src)) {
+        await page.waitForTimeout(150);
+        await page.mouse.dblclick(x, y, { delay: 50 });
+        await page.waitForTimeout(250);
+        const infoAfterDoubleClick = await image.evaluate((el) => ({
+          width: (el as HTMLImageElement).naturalWidth,
+          height: (el as HTMLImageElement).naturalHeight,
+          src: (el as HTMLImageElement).src,
+        }));
+        logger.info("lidl: double click zoom probe", infoAfterDoubleClick);
+      }
+    } else {
+      logger.warn("lidl: unable to compute flyer bounding box for click zoom");
+    }
+  } catch (err) {
+    logger.warn("lidl: click zoom failed", { error: (err as Error).message });
+  }
 }
 
 async function waitForHighResImage(
