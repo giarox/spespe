@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../../src/lib/database.types";
 import type { FlyerCandidate, PageImage } from "./types";
 import { hashString } from "./hash";
+import { isHighResUrl, HI_RES_MIN_DIMENSION } from "./image";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -68,6 +69,14 @@ export async function persistFlyerRun(options: {
   }
 
   if (pages.length > 0) {
+    const lowResPages = pages.filter((page) => !isHighResUrl(page.imageUrl));
+    if (lowResPages.length) {
+      throw new Error(
+        `Refusing to persist low-res Lidl pages (min ${HI_RES_MIN_DIMENSION}px). Offending pages: ${lowResPages
+          .map((page) => page.pageNo)
+          .join(", ")}`
+      );
+    }
     const pageRows = pages.map((page) => ({
       flyer_id: flyerRow.id,
       page_no: page.pageNo,

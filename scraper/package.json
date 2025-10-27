@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "tsx crawler.ts",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",

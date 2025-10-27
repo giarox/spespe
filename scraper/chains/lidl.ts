@@ -2,7 +2,8 @@ import type { Browser } from "playwright";
 import { parseItalianRange } from "../lib/date";
 import { extractPublicationIdFromImage } from "../lib/flyer";
 import { hashString } from "../lib/hash";
-import type { AdapterContext, CaptureResult, ChainAdapter, FlyerCandidate, PageImage } from "../lib/types";
+import { HI_RES_MIN_DIMENSION, getImgProxyFitDimensions, isHighResUrl } from "../lib/image";
+import type { AdapterContext, CaptureResult, ChainAdapter, FlyerCandidate, Logger, PageImage } from "../lib/types";
 
 const HUB_URL = process.env.LIDL_HUB_URL ?? "https://www.lidl.it/c/volantino-lidl/s10018048";
 const MAX_PAGES = Number(process.env.LIDL_MAX_PAGES ?? 60);
@@ -68,27 +69,108 @@ async function discover({ browser, logger }: AdapterContext): Promise<FlyerCandi
 
 const PAGE_IMG_SELECTOR = "section.maincontent section.sheetgesture .sheet .sheet__list li.page.page--current .page__wrapper > img.img";
 
-async function waitForHighResImage(page: import("playwright").Page, pageNo: number, logger: Logger) {
+function parsePageNoFromUrl(url: string): number | null {
+  const match = url.match(/page-(\d{2})_/);
+  if (!match) return null;
+  const num = parseInt(match[1], 10);
+  return Number.isFinite(num) ? num : null;
+}
+
+async function triggerZoom(page: import("playwright").Page, logger: Logger) {
+  const zoomSelectors = [
+    "button[aria-label*='Zoom']",
+    "button[data-testid='zoom-in']",
+    "button[class*='zoom-in']",
+    "button[title*='Zoom']",
+    "button[aria-label*='Ingrandisci']",
+  ];
+  let triggered = false;
+  for (const selector of zoomSelectors) {
+    const button = page.locator(selector).first();
+    if (await button.isVisible().catch(() => false)) {
+      logger.info("lidl: zoom button click", { selector });
+      for (let i = 0; i < 3; i += 1) {
+        await button.click().catch(() => undefined);
+        await page.waitForTimeout(200);
+      }
+      triggered = true;
+      break;
+    }
+  }
+
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+  // Drive additional zoom-in attempts even if buttons were found.
+  try {
+    await page.mouse.move(600, 420);
+    for (let i = 0; i < 3; i += 1) {
+      await page.mouse.wheel(0, -1200);
+      await page.waitForTimeout(150);
+    }
+    await page.keyboard.down(modifier);
+    for (let i = 0; i < 4; i += 1) {
+      await page.keyboard.press("+");
+      await page.waitForTimeout(120);
+    }
+    await page.keyboard.up(modifier);
+    triggered = true;
+    logger.info("lidl: zoom keyboard fallback triggered");
+  } catch (err) {
+    logger.warn("lidl: zoom fallback failed", { error: (err as Error).message });
+  }
+
+  if (!triggered) {
+    logger.warn("lidl: zoom trigger did not find any control, relying on keyboard");
+  }
+}
+
+async function waitForHighResImage(
+  page: import("playwright").Page,
+  pageNo: number,
+  logger: Logger,
+  hiResByPage: Map<number, string>
+): Promise<{ src: string | null; width: number | null; height: number | null }> {
   const locator = page.locator(PAGE_IMG_SELECTOR);
   await locator.first().waitFor({ state: "visible", timeout: 30_000 });
   await page.locator(".page--current .page__wrapper .loading").first().waitFor({ state: "hidden", timeout: 10_000 }).catch(() => logger.warn("lidl: spinner still visible", { pageNo }));
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const candidateHiRes = hiResByPage.get(pageNo) ?? null;
     const info = await locator.first().evaluate((el) => ({
       src: el.getAttribute("src") ?? "",
       loaded: el.complete,
       width: el.naturalWidth,
       height: el.naturalHeight,
     }));
-    logger.info("lidl: page image status", { pageNo, attempt, info });
+    logger.info("lidl: page image status", { pageNo, attempt, info, desired: candidateHiRes });
+    if (candidateHiRes && isHighResUrl(candidateHiRes)) {
+      if (info.src === candidateHiRes && info.loaded) {
+        hiResByPage.delete(pageNo);
+        logger.info("lidl: hi-res ready", { pageNo, src: candidateHiRes, width: info.width, height: info.height });
+        return { src: candidateHiRes, width: info.width ?? null, height: info.height ?? null };
+      }
+      await page.waitForTimeout(150);
+      const updated = await locator.first().evaluate((el) => ({
+        src: el.getAttribute("src") ?? "",
+        loaded: el.complete,
+        width: el.naturalWidth,
+        height: el.naturalHeight,
+      }));
+      if (updated.src === candidateHiRes && updated.loaded) {
+        hiResByPage.delete(pageNo);
+        logger.info("lidl: hi-res ready", { pageNo, src: candidateHiRes, width: updated.width, height: updated.height });
+        return { src: candidateHiRes, width: updated.width ?? null, height: updated.height ?? null };
+      }
+      hiResByPage.delete(pageNo);
+      return { src: candidateHiRes, width: updated.width ?? info.width ?? null, height: updated.height ?? info.height ?? null };
+    }
     if (info.src && info.loaded && info.width > 0) {
       logger.info("lidl: page image ready", { pageNo, src: info.src });
-      return info.src;
+      return { src: info.src, width: info.width ?? null, height: info.height ?? null };
     }
     await page.waitForTimeout(WAIT_UPGRADE_MS);
   }
   const fallback = await locator.first().getAttribute("src");
   logger.warn("lidl: using fallback src", { pageNo, fallback });
-  return fallback ?? null;
+  return { src: fallback ?? null, width: null, height: null };
 }
 
 async function clickNext(page: import("playwright").Page) {
@@ -127,9 +209,9 @@ async function capturePages(
   flyer: FlyerCandidate,
   maxPages = Number.POSITIVE_INFINITY
 ): Promise<CaptureResult> {
-const context = await createContext(ctx.browser);
-const page = await context.newPage();
-ctx.logger.info("lidl: storage", { state: process.env.LIDL_STORAGE_STATE ? "loaded" : "empty" });
+  const context = await createContext(ctx.browser);
+  const page = await context.newPage();
+  ctx.logger.info("lidl: storage", { state: process.env.LIDL_STORAGE_STATE ? "loaded" : "empty" });
   ctx.logger.info("lidl: loading flyer", { url: flyer.url });
   await page.goto(flyer.url, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await dismissOverlay(page);
@@ -138,18 +220,51 @@ ctx.logger.info("lidl: storage", { state: process.env.LIDL_STORAGE_STATE ? "load
 
   const pages: PageImage[] = [];
   const seenHashes = new Set<string>();
+  const hiResByPage = new Map<number, string>();
+  const maxAttemptsPerPage = Number(process.env.LIDL_CAPTURE_RETRIES ?? 5);
+
+  page.on("response", async (response) => {
+    const url = response.url();
+    if (!url.includes("imgproxy.leaflets.schwarz")) return;
+    if (!isHighResUrl(url)) return;
+    const pageNo = parsePageNoFromUrl(url);
+    if (!pageNo) return;
+    if (hiResByPage.has(pageNo)) return;
+    hiResByPage.set(pageNo, url);
+    ctx.logger.info("lidl: hi-res detected", { pageNo, url });
+  });
 
   for (let pageNo = 1; pageNo <= Math.min(MAX_PAGES, maxPages); pageNo += 1) {
-    await dismissOverlay(page);
-    const src = await waitForHighResImage(page, pageNo, ctx.logger);
-    if (!src) break;
-    const imgHash = hashString(src);
+    let capture: { src: string | null; width: number | null; height: number | null } | null = null;
+    for (let attempt = 0; attempt < maxAttemptsPerPage; attempt += 1) {
+      await dismissOverlay(page);
+      await triggerZoom(page, ctx.logger);
+      capture = await waitForHighResImage(page, pageNo, ctx.logger, hiResByPage);
+      if (!capture?.src) {
+        continue;
+      }
+      if (isHighResUrl(capture.src)) {
+        break;
+      }
+      ctx.logger.warn("lidl: low-res capture detected", { pageNo, attempt, src: capture.src, min: HI_RES_MIN_DIMENSION });
+    }
+    if (!capture?.src) {
+      ctx.logger.warn("lidl: no image captured", { pageNo });
+      break;
+    }
+    if (!isHighResUrl(capture.src)) {
+      throw new Error(`Failed to capture hi-res image for page ${pageNo} (min ${HI_RES_MIN_DIMENSION}px)`);
+    }
+    const imgHash = hashString(capture.src);
     if (seenHashes.has(imgHash)) break;
     seenHashes.add(imgHash);
+    const dims = getImgProxyFitDimensions(capture.src);
     pages.push({
       pageNo,
-      imageUrl: src,
+      imageUrl: capture.src,
       imageHash: imgHash,
+      width: capture.width ?? dims?.width ?? null,
+      height: capture.height ?? dims?.height ?? null,
     });
     const hasNext = await clickNext(page);
     if (!hasNext) {
