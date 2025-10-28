@@ -5,7 +5,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 
 import sharp from "sharp";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createWorker, PSM } from "tesseract.js";
 
@@ -25,6 +25,7 @@ const MAX_IMAGE_WIDTH = Number(process.env.LIDL_GEMINI_WIDTH ?? 3000);
 const MODEL_NAME = process.env.LIDL_GEMINI_MODEL ?? "gemini-2.5-flash-lite-preview";
 const DEFAULT_BATCH_SIZE = Number(process.env.LIDL_GEMINI_BATCH ?? 3);
 const MAX_CALLS_PER_DAY = Number(process.env.LIDL_GEMINI_MAX_CALLS ?? 200);
+const GEMINI_API_VERSION = process.env.LIDL_GEMINI_API_VERSION ?? "v1alpha";
 const CACHE_DIR = path.join(process.cwd(), ".cache", "gemini");
 const USAGE_FILE = path.join(CACHE_DIR, "usage.json");
 
@@ -41,61 +42,106 @@ const UNIT_PRICE_KEYWORDS = [
 
 const PRICE_REGEX = /€\s*\d{1,4}(?:[.,]\d{2})/;
 
-const SYSTEM_PROMPT = `You are a precise data extractor. Return JSON that matches the provided schema.
-- Extract the main checkout price per product card.
-- Reject unit prices when evidence contains keywords like "kg", "al kg", "/kg", "al litro", "/l", "g", "ml", "al pezzo".
-- Ignore discount only labels (e.g., "-33%", "Con Lidl Plus", "Da lunedì...").
-- price_text must include € and two decimals.
-- price_eur must be the numeric value of price_text using dot as decimal separator.
-- Product name must have 3-10 words with brand + noun (e.g., "Milbona Edam a fette").
-- bbox_price values are percentages between 0 and 1 inclusive.
-- If uncertain, set fields to null and explain briefly in notes (<=20 words).
-- Return JSON only.`;
+const SYSTEM_PROMPT = `You are an expert data extractor for grocery store flyers. Carefully analyze the flyer image and return JSON that strictly matches the provided schema.
+
+Rules:
+- Extract the main customer-facing checkout price for each product card as price_now (numeric EUR).
+- Capture detailed attributes: product_name, optional brand, variant, pack count, and net quantity (value + unit).
+- price_was is the original higher price if displayed; discount_percent is any percentage discount badge.
+- unit_price_value/unit capture per-unit pricing when available.
+- loyalty must indicate if Lidl Plus (or other program) is required.
+- badges include short promotional labels; category_hint reflects the section title common to the page.
+- evidence_text must include nearby text supporting the extraction; bbox_price must contain the bounding box (0..1) of the main price.
+- If information is missing, return null—never invent data.
+- Output valid JSON only, with no markdown or commentary.`;
 
 const RESPONSE_SCHEMA = {
-  type: "object",
-  required: ["items"],
+  type: Type.OBJECT,
+  required: ["category_hint", "offers"],
   properties: {
-    items: {
-      type: "array",
+    category_hint: { type: Type.STRING, nullable: true },
+    offers: {
+      type: Type.ARRAY,
       items: {
-        type: "object",
-        required: ["name", "price_eur", "price_text", "bbox_price", "evidence_text"],
+        type: Type.OBJECT,
+        required: ["product_name", "price_now", "evidence_text", "loyalty"],
         properties: {
-          name: { type: "string", nullable: true },
-          price_eur: { type: "number", nullable: true },
-          price_text: { type: "string", nullable: true },
-          bbox_price: {
-            type: "object",
-            required: ["x0_pct", "y0_pct", "x1_pct", "y1_pct"],
+          product_name: { type: Type.STRING, nullable: true },
+          brand: { type: Type.STRING, nullable: true },
+          variant: { type: Type.STRING, nullable: true },
+          pack_count: { type: Type.NUMBER, nullable: true },
+          net_quantity_value: { type: Type.NUMBER, nullable: true },
+          net_quantity_unit: { type: Type.STRING, nullable: true },
+          price_now: { type: Type.NUMBER, nullable: true },
+          price_was: { type: Type.NUMBER, nullable: true },
+          price_text: { type: Type.STRING, nullable: true },
+          discount_percent: { type: Type.NUMBER, nullable: true },
+          unit_price_value: { type: Type.NUMBER, nullable: true },
+          unit_price_unit: { type: Type.STRING, nullable: true },
+          loyalty: {
+            type: Type.OBJECT,
+            required: ["required", "program"],
             properties: {
-              x0_pct: { type: "number" },
-              y0_pct: { type: "number" },
-              x1_pct: { type: "number" },
-              y1_pct: { type: "number" },
+              required: { type: Type.BOOLEAN },
+              program: { type: Type.STRING, nullable: true },
             },
           },
-          badges: { type: "array", items: { type: "string" }, nullable: true },
-          evidence_text: { type: "string" },
-          notes: { type: "string", nullable: true },
+          badges: { type: Type.ARRAY, items: { type: Type.STRING }, nullable: true },
+          evidence_text: { type: Type.STRING },
+          notes: { type: Type.STRING, nullable: true },
+          bbox_price: {
+            type: Type.OBJECT,
+            nullable: true,
+            properties: {
+              x0_pct: { type: Type.NUMBER },
+              y0_pct: { type: Type.NUMBER },
+              x1_pct: { type: Type.NUMBER },
+              y1_pct: { type: Type.NUMBER },
+            },
+          },
         },
       },
     },
   },
 } as const;
 
-type GeminiRawItem = {
-  name: string | null;
-  price_eur: number | null;
+type RawLoyalty = { required?: boolean | null; program?: string | null } | null;
+
+type GeminiRawOffer = {
+  product_name: string | null;
+  brand: string | null;
+  variant: string | null;
+  pack_count: number | null;
+  net_quantity_value: number | null;
+  net_quantity_unit: string | null;
+  price_now: number | null;
+  price_was: number | null;
   price_text: string | null;
-  bbox_price: { x0_pct: number; y0_pct: number; x1_pct: number; y1_pct: number };
-  badges?: string[] | null;
+  discount_percent: number | null;
+  unit_price_value: number | null;
+  unit_price_unit: string | null;
+  loyalty: { required: boolean; program: string | null };
+  badges: string[] | null;
   evidence_text: string;
   notes: string | null;
+  bbox_price: { x0_pct: number; y0_pct: number; x1_pct: number; y1_pct: number } | null;
 };
 
 type GeminiRawResponse = {
-  items: GeminiRawItem[];
+  category_hint: string | null;
+  offers: GeminiRawOffer[];
+};
+
+type ValidatedOffer = {
+  item: GeminiRawOffer;
+  confidence: number;
+  issues: string[];
+};
+
+type ValidatedResponse = {
+  category_hint: string | null;
+  offers: ValidatedOffer[];
+  source: "gemini" | "tesseract";
 };
 
 type FlyerPageRecord = Database["public"]["Tables"]["flyer_pages"]["Row"] & {
@@ -114,6 +160,7 @@ type NormalisedOffer = {
   flyer_page_id: string;
   page_no: number;
   product_name: string;
+  brand: string | null;
   price: number;
   price_text: string;
   confidence: number;
@@ -124,6 +171,7 @@ ensureCacheDir();
 
 const genAI = new GoogleGenAI({
   apiKey: GEMINI_API_KEY,
+  apiVersion: GEMINI_API_VERSION,
 });
 
 function ensureCacheDir() {
@@ -175,8 +223,18 @@ async function readCache(base64: string): Promise<GeminiRawResponse | null> {
   if (!fs.existsSync(file)) return null;
   try {
     const raw = fs.readFileSync(file, "utf8");
-    const parsed = JSON.parse(raw) as GeminiRawResponse;
-    return parsed;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "offers" in parsed) {
+      return normalizeGeminiResponse(parsed);
+    }
+    if (parsed && typeof parsed === "object" && "items" in parsed) {
+      const migrated = {
+        category_hint: (parsed as Record<string, unknown>).category_hint ?? null,
+        offers: (parsed as Record<string, unknown>).items,
+      };
+      return normalizeGeminiResponse(migrated);
+    }
+    return normalizeGeminiResponse(parsed);
   } catch {
     return null;
   }
@@ -196,8 +254,11 @@ function containsUnitPrice(evidence: string): boolean {
   return UNIT_PRICE_KEYWORDS.some((keyword) => lower.includes(keyword));
 }
 
-function isPriceTextValid(priceText: string | null, priceEur: number | null): boolean {
-  if (!priceText || !priceEur) return false;
+function isPriceTextValid(priceText: string | null, priceValue: number | null): boolean {
+  if (priceValue === null || !Number.isFinite(priceValue)) {
+    return false;
+  }
+  if (!priceText) return true;
   if (!PRICE_REGEX.test(priceText)) return false;
   const normalized = parseFloat(priceText.replace(/[^\d,.-]/g, "").replace(",", "."));
   return Number.isFinite(normalized);
@@ -208,7 +269,15 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-function bboxIoU(a: GeminiRawItem["bbox_price"], b: GeminiRawItem["bbox_price"]): number {
+function formatEuro(value: number): string {
+  return `€${value.toFixed(2).replace(".", ",")}`;
+}
+
+function bboxIoU(
+  a: GeminiRawOffer["bbox_price"] | null | undefined,
+  b: GeminiRawOffer["bbox_price"] | null | undefined
+): number {
+  if (!a || !b) return 0;
   const ax0 = Math.min(a.x0_pct, a.x1_pct);
   const ay0 = Math.min(a.y0_pct, a.y1_pct);
   const ax1 = Math.max(a.x0_pct, a.x1_pct);
@@ -234,62 +303,224 @@ function bboxIoU(a: GeminiRawItem["bbox_price"], b: GeminiRawItem["bbox_price"])
   return intersection / union;
 }
 
-function computeConfidence(item: GeminiRawItem, issues: string[]): number {
-  let score = 0.9;
-  if (!item.price_text || !item.price_eur) score -= 0.4;
-  if (!item.name) score -= 0.2;
-  if (containsUnitPrice(item.evidence_text)) score -= 0.3;
-  if (issues.length) score -= Math.min(0.5, issues.length * 0.1);
-  if (!item.notes) score += 0.05;
-  return Math.max(0, Math.min(1, score));
+function asNullableString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
 }
 
-function validateAndFilter(raw: GeminiRawResponse): GeminiRawItem[] {
-  if (!raw || typeof raw !== "object" || !Array.isArray(raw.items)) {
-    throw new Error("Invalid Gemini response format");
+function asNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
   }
-  const accepted: GeminiRawItem[] = [];
-  for (const item of raw.items) {
+  if (typeof value === "string") {
+    const normalized = parseFloat(value.replace(/[^0-9.,-]/g, "").replace(",", "."));
+    return Number.isFinite(normalized) ? normalized : null;
+  }
+  return null;
+}
+
+function asStringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const entries = value
+    .map((entry) => (typeof entry === "string" ? entry.trim() : null))
+    .filter((entry): entry is string => Boolean(entry && entry.length));
+  return entries.length ? entries : null;
+}
+
+function normalizeLoyalty(loyalty: RawLoyalty): { required: boolean; program: string | null } {
+  if (!loyalty || typeof loyalty !== "object") {
+    return { required: false, program: null };
+  }
+  const record = loyalty as Record<string, unknown>;
+  const requiredValue = record.required;
+  const required = typeof requiredValue === "boolean" ? requiredValue : Boolean(requiredValue);
+  const program = asNullableString(record.program ?? null);
+  return { required, program };
+}
+
+function coerceOffer(raw: unknown): GeminiRawOffer {
+  const record = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const loyalty = normalizeLoyalty(record.loyalty as RawLoyalty);
+  const bboxSource = record.bbox_price && typeof record.bbox_price === "object"
+    ? (record.bbox_price as Record<string, unknown>)
+    : null;
+  let bbox: GeminiRawOffer["bbox_price"] = null;
+  if (bboxSource) {
+    const x0 = asNullableNumber(bboxSource.x0_pct);
+    const y0 = asNullableNumber(bboxSource.y0_pct);
+    const x1 = asNullableNumber(bboxSource.x1_pct);
+    const y1 = asNullableNumber(bboxSource.y1_pct);
+    if ([x0, y0, x1, y1].every((value) => value !== null)) {
+      bbox = {
+        x0_pct: clamp01(x0!),
+        y0_pct: clamp01(y0!),
+        x1_pct: clamp01(x1!),
+        y1_pct: clamp01(y1!),
+      };
+    }
+  }
+
+  return {
+    product_name: asNullableString(record.product_name),
+    brand: asNullableString(record.brand),
+    variant: asNullableString(record.variant),
+    pack_count: asNullableNumber(record.pack_count),
+    net_quantity_value: asNullableNumber(record.net_quantity_value),
+    net_quantity_unit: asNullableString(record.net_quantity_unit),
+    price_now: asNullableNumber(record.price_now),
+    price_was: asNullableNumber(record.price_was),
+    price_text: asNullableString(record.price_text),
+    discount_percent: asNullableNumber(record.discount_percent),
+    unit_price_value: asNullableNumber(record.unit_price_value),
+    unit_price_unit: asNullableString(record.unit_price_unit),
+    loyalty,
+    badges: asStringArray(record.badges),
+    evidence_text: asNullableString(record.evidence_text) ?? "",
+    notes: asNullableString(record.notes),
+    bbox_price: bbox,
+  };
+}
+
+function computeConfidence(item: GeminiRawOffer, issues: string[]): number {
+  let score = 1;
+  if (item.price_now === null) score -= 0.6;
+  if (!item.product_name) score -= 0.25;
+  if (!item.evidence_text) score -= 0.15;
+  if (!item.bbox_price) score -= 0.1;
+  if (!item.price_text) score -= 0.05;
+  if (containsUnitPrice(item.evidence_text)) score -= 0.05;
+  if (issues.includes("unit-price-evidence")) score -= 0.1;
+  score -= Math.min(0.4, issues.length * 0.05);
+  return clamp01(score);
+}
+
+function normalizeGeminiResponse(payload: unknown): GeminiRawResponse {
+  const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+  const offersInput = Array.isArray(record.offers) ? record.offers : [];
+  const offers = offersInput.map((entry) => coerceOffer(entry));
+  return {
+    category_hint: asNullableString(record.category_hint) ?? null,
+    offers,
+  };
+}
+
+function validateAndFilter(raw: GeminiRawResponse, source: "gemini" | "tesseract"): ValidatedResponse {
+  const accepted: ValidatedOffer[] = [];
+  for (const rawOffer of raw.offers ?? []) {
+    const offer: GeminiRawOffer = {
+      ...rawOffer,
+      badges: rawOffer.badges ? [...rawOffer.badges] : null,
+      loyalty: rawOffer.loyalty ? { ...rawOffer.loyalty } : { required: false, program: null },
+      bbox_price: rawOffer.bbox_price
+        ? {
+            x0_pct: clamp01(rawOffer.bbox_price.x0_pct),
+            y0_pct: clamp01(rawOffer.bbox_price.y0_pct),
+            x1_pct: clamp01(rawOffer.bbox_price.x1_pct),
+            y1_pct: clamp01(rawOffer.bbox_price.y1_pct),
+          }
+        : null,
+    };
+
     const issues: string[] = [];
-    if (!item) continue;
-    const name = item.name?.trim() ?? "";
-    const priceText = item.price_text ?? "";
-    const priceEur = item.price_eur ?? null;
-
-    if (name) {
-      const words = name.split(/\s+/);
-      if (words.length < 3 || words.length > 10) issues.push("name-length");
-    } else {
-      issues.push("name-missing");
+    if (!offer.product_name || offer.product_name.trim().length < 3) {
+      issues.push("name-invalid");
     }
 
-    if (!isPriceTextValid(priceText, priceEur)) issues.push("price-invalid");
-
-    if (!item.evidence_text || !item.evidence_text.trim()) issues.push("missing-evidence");
-    if (containsUnitPrice(item.evidence_text)) issues.push("unit-price");
-
-    const bbox = item.bbox_price;
-    const coords = [bbox?.x0_pct, bbox?.y0_pct, bbox?.x1_pct, bbox?.y1_pct];
-    if (coords.some((value) => typeof value !== "number" || value < 0 || value > 1)) {
-      issues.push("bbox-invalid");
-    }
-
-    if (issues.includes("unit-price")) continue;
-    if (issues.includes("price-invalid")) continue;
-
-    (item as GeminiRawItem).notes = issues.length ? `${issues.join(", ")}` : item.notes;
-    accepted.push(item);
-  }
-
-  const deduped: GeminiRawItem[] = [];
-  for (const item of accepted) {
-    if (deduped.some((previous) => bboxIoU(previous.bbox_price, item.bbox_price) > 0.5)) {
+    if (offer.price_now === null || offer.price_now <= 0) {
+      issues.push("price-missing");
       continue;
     }
-    deduped.push(item);
+
+    if (!isPriceTextValid(offer.price_text, offer.price_now)) {
+      issues.push("price-text");
+    }
+
+    const evidence = offer.evidence_text?.trim() ?? "";
+    if (!evidence) {
+      issues.push("missing-evidence");
+    } else if (containsUnitPrice(evidence) && !offer.price_text) {
+      issues.push("unit-price-evidence");
+    }
+
+    const confidence = computeConfidence(offer, issues);
+    if (confidence <= 0) continue;
+
+    accepted.push({ item: offer, confidence, issues });
   }
 
-  return deduped;
+  const deduped: ValidatedOffer[] = [];
+  for (const entry of accepted) {
+    const bbox = entry.item.bbox_price;
+    if (bbox && deduped.some((previous) => bboxIoU(previous.item.bbox_price, bbox) > 0.5)) {
+      continue;
+    }
+    deduped.push(entry);
+  }
+
+  return {
+    category_hint: raw.category_hint ?? null,
+    offers: deduped,
+    source,
+  };
+}
+
+function normaliseOffers(validated: ValidatedResponse, page: FlyerPageRecord): NormalisedOffer[] {
+  const offers: NormalisedOffer[] = [];
+  for (const entry of validated.offers) {
+    const { item, confidence, issues } = entry;
+    if (item.price_now === null) continue;
+    const productName = item.product_name?.trim() || "Offerta Lidl";
+    const priceText = item.price_text ?? formatEuro(item.price_now);
+    const loyalty = normalizeLoyalty(item.loyalty);
+
+    const metadata = {
+      brand: item.brand ?? null,
+      variant: item.variant ?? null,
+      pack_count: item.pack_count ?? null,
+      net_quantity_value: item.net_quantity_value ?? null,
+      net_quantity_unit: item.net_quantity_unit ?? null,
+      price_now: item.price_now,
+      price_was: item.price_was ?? null,
+      price_text,
+      discount_percent: item.discount_percent ?? null,
+      discount_text:
+        item.discount_percent !== null && item.discount_percent !== undefined
+          ? `${item.discount_percent}%`
+          : null,
+      unit_price_value: item.unit_price_value ?? null,
+      unit_price_unit: item.unit_price_unit ?? null,
+      loyalty,
+      badges: item.badges ?? [],
+      evidence_text: item.evidence_text,
+      notes: item.notes ?? null,
+      bbox_price: item.bbox_price
+        ? {
+            x0_pct: clamp01(item.bbox_price.x0_pct),
+            y0_pct: clamp01(item.bbox_price.y0_pct),
+            x1_pct: clamp01(item.bbox_price.x1_pct),
+            y1_pct: clamp01(item.bbox_price.y1_pct),
+          }
+        : null,
+      issues,
+      confidence,
+      source: validated.source,
+      category_hint: validated.category_hint,
+    } satisfies Record<string, unknown>;
+
+    offers.push({
+      flyer_id: page.flyer_id!,
+      flyer_page_id: page.id,
+      page_no: page.page_no,
+      product_name: productName,
+      brand: item.brand ?? null,
+      price: item.price_now,
+      price_text,
+      confidence,
+      metadata: metadata as Json,
+    });
+  }
+  return offers;
 }
 
 async function downloadAndPrepareImage(url: string): Promise<Buffer> {
@@ -341,29 +572,24 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
     throw new Error("Empty response from Gemini");
   }
 
-  let parsed: GeminiRawResponse;
+  let parsed: unknown;
   try {
-    parsed = JSON.parse(text) as GeminiRawResponse;
+    parsed = JSON.parse(text);
   } catch {
     logger.error("gemini:parse-error", { raw: text });
     throw new Error("Failed to parse Gemini JSON");
   }
 
-  await writeCache(base64, parsed);
-  return parsed;
+  const normalised = normalizeGeminiResponse(parsed);
+  await writeCache(base64, normalised);
+  return normalised;
 }
 
-async function tesseractFallback(buffer: Buffer): Promise<GeminiRawItem[]> {
-  const worker = await createWorker({
-    logger: (message) => {
-      if (message.status === "recognizing text") {
-        logger.info("tesseract:progress", { progress: message.progress });
-      }
-    },
-  });
+async function tesseractFallback(buffer: Buffer): Promise<GeminiRawResponse> {
+  const worker = await createWorker();
   await worker.load();
-  await worker.loadLanguage("eng");
-  await worker.initialize("eng");
+  await worker.loadLanguage("ita+eng");
+  await worker.initialize("ita+eng");
   await worker.setParameters({
     tessedit_pageseg_mode: PSM.AUTO,
     preserve_interword_spaces: "1",
@@ -371,13 +597,11 @@ async function tesseractFallback(buffer: Buffer): Promise<GeminiRawItem[]> {
   const result = await worker.recognize(buffer);
   await worker.terminate();
 
-  const offers: GeminiRawItem[] = [];
+  const offers: Record<string, unknown>[] = [];
   const seen = new Set<string>();
   for (const line of result.data.lines ?? []) {
     const text = line.text.trim();
     if (!PRICE_REGEX.test(text)) continue;
-    if (containsUnitPrice(text)) continue;
-
     const priceMatch = text.match(/\d{1,4}(?:[.,]\d{2})/);
     if (!priceMatch) continue;
     const priceValue = parseFloat(priceMatch[0].replace(",", "."));
@@ -388,74 +612,27 @@ async function tesseractFallback(buffer: Buffer): Promise<GeminiRawItem[]> {
     seen.add(key);
 
     offers.push({
-      name: null,
-      price_eur: priceValue,
-      price_text: `€${priceMatch[0].replace(".", ",")}`,
-      bbox_price: {
-        x0_pct: 0,
-        y0_pct: 0,
-        x1_pct: 1,
-        y1_pct: 1,
-      },
+      product_name: `Offerta ${text.split(priceMatch[0])[0].trim() || "Lidl"}`,
+      price_now: priceValue,
+      price_text: formatEuro(priceValue),
+      price_was: null,
+      discount_percent: null,
+      unit_price_value: null,
+      unit_price_unit: null,
+      brand: null,
+      variant: null,
+      pack_count: null,
+      net_quantity_value: null,
+      net_quantity_unit: null,
+      loyalty: { required: false, program: null },
       badges: null,
       evidence_text: text,
       notes: "tesseract-fallback",
+      bbox_price: null,
     });
   }
 
-  return offers;
-}
-
-function normaliseOffers(items: GeminiRawItem[], page: FlyerPageRecord): NormalisedOffer[] {
-  const offers: NormalisedOffer[] = [];
-  for (const item of items) {
-    const issues: string[] = [];
-    const name = item.name?.trim() ?? "";
-    if (!name) {
-      issues.push("missing-name");
-    }
-    const priceText = item.price_text ?? "";
-    const priceValue = item.price_eur ?? NaN;
-    if (!isPriceTextValid(priceText, priceValue)) {
-      issues.push("invalid-price");
-      continue;
-    }
-
-    const words = name.split(/\s+/);
-    if (words.length < 3 || words.length > 10) {
-      issues.push("name-length");
-    }
-
-    const confidence = computeConfidence(item, issues);
-    const priceNumeric = parseFloat(priceText.replace(/[^0-9.,-]/g, "").replace(/,/g, "."));
-
-    offers.push({
-      flyer_id: page.flyer_id!,
-      flyer_page_id: page.id,
-      page_no: page.page_no,
-      product_name: name || "Prodotto",
-      price: priceNumeric,
-      price_text: priceText,
-      confidence,
-      metadata: {
-        badges: item.badges ?? [],
-        evidence_text: item.evidence_text,
-        notes: item.notes,
-        bbox_price: {
-          x0_pct: clamp01(item.bbox_price.x0_pct),
-          y0_pct: clamp01(item.bbox_price.y0_pct),
-          x1_pct: clamp01(item.bbox_price.x1_pct),
-          y1_pct: clamp01(item.bbox_price.y1_pct),
-        },
-        source: "gemini",
-        issues,
-        price_text: item.price_text,
-        confidence,
-      },
-    });
-  }
-
-  return offers;
+  return normalizeGeminiResponse({ category_hint: null, offers });
 }
 
 async function fetchPendingPages(supabase: Supabase, batchSize: number) {
@@ -545,7 +722,7 @@ async function upsertRawOffers(
     product_name: offer.product_name,
     price: offer.price,
     currency: "EUR",
-    brand: null,
+    brand: offer.brand,
     metadata: offer.metadata,
   }));
 
@@ -575,22 +752,25 @@ async function processPage(supabase: Supabase, page: FlyerPageRecord) {
     const imageBuffer = await downloadAndPrepareImage(page.image_url);
     const base64 = imageBuffer.toString("base64");
     let response: GeminiRawResponse;
+    let source: "gemini" | "tesseract" = "gemini";
 
     try {
       response = await callGemini(base64);
     } catch (error) {
       logger.error("gemini:api-error", { flyer_page_id: page.id, error: error instanceof Error ? error.message : String(error) });
       logger.info("gemini:fallback:tesseract", { flyer_page_id: page.id });
-      const fallbackItems = await tesseractFallback(imageBuffer);
-      response = { items: fallbackItems };
+      response = await tesseractFallback(imageBuffer);
+      source = "tesseract";
     }
 
-    const filtered = validateAndFilter(response);
-    const normalised = normaliseOffers(filtered, page);
+    const validated = validateAndFilter(response, source);
+    const normalised = normaliseOffers(validated, page);
     await upsertRawOffers(supabase, page, normalised);
     await markProcessing(supabase, page.id, normalised.length ? "ok" : "empty", normalised.length);
     logger.info("gemini:page:done", {
       flyer_page_id: page.id,
+      source,
+      category_hint: validated.category_hint,
       offers_found: normalised.length,
       sample_offers: normalised.slice(0, 2).map((offer) => ({
         product_name: offer.product_name,
