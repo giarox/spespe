@@ -588,13 +588,25 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
 async function tesseractFallback(buffer: Buffer): Promise<GeminiRawResponse> {
   const worker = await createWorker();
   if (typeof (worker as { load?: () => Promise<void> }).load === "function") {
-    await (worker as { load: () => Promise<void> }).load().catch(() => undefined);
+    try {
+      await (worker as { load: () => Promise<void> }).load();
+    } catch (error) {
+      logger.warn("tesseract:load-skip", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
   if (typeof (worker as { loadLanguage?: (lang: string) => Promise<void> }).loadLanguage === "function") {
-    await (worker as { loadLanguage: (lang: string) => Promise<void> }).loadLanguage("ita+eng").catch(() => undefined);
+    try {
+      await (worker as { loadLanguage: (lang: string) => Promise<void> }).loadLanguage("ita+eng");
+    } catch (error) {
+      logger.warn("tesseract:loadLanguage-skip", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
   if (typeof (worker as { initialize?: (lang: string) => Promise<void> }).initialize === "function") {
-    await (worker as { initialize: (lang: string) => Promise<void> }).initialize("ita+eng").catch(() => undefined);
+    try {
+      await (worker as { initialize: (lang: string) => Promise<void> }).initialize("ita+eng");
+    } catch (error) {
+      logger.warn("tesseract:initialize-skip", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
   await worker.setParameters({
     tessedit_pageseg_mode: PSM.AUTO,
