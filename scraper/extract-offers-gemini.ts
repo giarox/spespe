@@ -25,7 +25,6 @@ const MAX_IMAGE_WIDTH = Number(process.env.LIDL_GEMINI_WIDTH ?? 3000);
 const MODEL_NAME = process.env.LIDL_GEMINI_MODEL ?? "gemini-2.5-flash-lite-preview";
 const DEFAULT_BATCH_SIZE = Number(process.env.LIDL_GEMINI_BATCH ?? 3);
 const MAX_CALLS_PER_DAY = Number(process.env.LIDL_GEMINI_MAX_CALLS ?? 200);
-const GEMINI_API_VERSION = process.env.LIDL_GEMINI_API_VERSION ?? "v1alpha";
 const CACHE_DIR = path.join(process.cwd(), ".cache", "gemini");
 const USAGE_FILE = path.join(CACHE_DIR, "usage.json");
 
@@ -125,7 +124,6 @@ ensureCacheDir();
 
 const genAI = new GoogleGenAI({
   apiKey: GEMINI_API_KEY,
-  apiVersion: GEMINI_API_VERSION,
 });
 
 function ensureCacheDir() {
@@ -356,7 +354,13 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
 }
 
 async function tesseractFallback(buffer: Buffer): Promise<GeminiRawItem[]> {
-  const worker = await createWorker();
+  const worker = await createWorker({
+    logger: (message) => {
+      if (message.status === "recognizing text") {
+        logger.info("tesseract:progress", { progress: message.progress });
+      }
+    },
+  });
   await worker.load();
   await worker.loadLanguage("eng");
   await worker.initialize("eng");
