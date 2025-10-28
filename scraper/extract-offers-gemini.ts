@@ -25,7 +25,7 @@ const MAX_IMAGE_WIDTH = Number(process.env.LIDL_GEMINI_WIDTH ?? 3000);
 const MODEL_NAME = process.env.LIDL_GEMINI_MODEL ?? "gemini-2.5-flash-lite-preview";
 const DEFAULT_BATCH_SIZE = Number(process.env.LIDL_GEMINI_BATCH ?? 3);
 const MAX_CALLS_PER_DAY = Number(process.env.LIDL_GEMINI_MAX_CALLS ?? 200);
-const GEMINI_API_VERSION = process.env.LIDL_GEMINI_API_VERSION ?? "v1alpha";
+const GEMINI_API_VERSION = process.env.LIDL_GEMINI_API_VERSION ?? "v1beta";
 const CACHE_DIR = path.join(process.cwd(), ".cache", "gemini");
 const USAGE_FILE = path.join(CACHE_DIR, "usage.json");
 
@@ -587,9 +587,15 @@ async function callGemini(base64: string): Promise<GeminiRawResponse> {
 
 async function tesseractFallback(buffer: Buffer): Promise<GeminiRawResponse> {
   const worker = await createWorker();
-  await worker.load();
-  await worker.loadLanguage("ita+eng");
-  await worker.initialize("ita+eng");
+  if (typeof (worker as { load?: () => Promise<void> }).load === "function") {
+    await (worker as { load: () => Promise<void> }).load().catch(() => undefined);
+  }
+  if (typeof (worker as { loadLanguage?: (lang: string) => Promise<void> }).loadLanguage === "function") {
+    await (worker as { loadLanguage: (lang: string) => Promise<void> }).loadLanguage("ita+eng").catch(() => undefined);
+  }
+  if (typeof (worker as { initialize?: (lang: string) => Promise<void> }).initialize === "function") {
+    await (worker as { initialize: (lang: string) => Promise<void> }).initialize("ita+eng").catch(() => undefined);
+  }
   await worker.setParameters({
     tessedit_pageseg_mode: PSM.AUTO,
     preserve_interword_spaces: "1",
@@ -697,6 +703,33 @@ async function fetchPendingPages(supabase: Supabase, batchSize: number) {
   });
 
   return candidates;
+}
+
+async function markProcessing(
+  supabase: Supabase,
+  flyerPageId: string,
+  status: string,
+  offersFound: number,
+  notes?: string
+) {
+  const response = await supabase
+    .from("flyer_page_processing")
+    .upsert(
+      [
+        {
+          flyer_page_id: flyerPageId,
+          processed_at: new Date().toISOString(),
+          status,
+          offers_found: offersFound,
+          notes: notes ? notes.slice(0, 500) : null,
+        },
+      ],
+      { onConflict: "flyer_page_id" }
+    );
+
+  if (response.error) {
+    logger.error("gemini:processing-log-error", { flyer_page_id: flyerPageId, error: response.error.message });
+  }
 }
 
 async function upsertRawOffers(
