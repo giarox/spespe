@@ -18,7 +18,8 @@ class VisionAnalyzer:
     # Models in order of preference
     MODELS = [
         "allenai/molmo-2-8b:free",  # Primary model
-        "black-forest-labs/flux.2-klein-4b",  # Fallback model
+        "nvidia/nemotron-nano-12b-v2-vl:free",  # First fallback
+        "mistralai/mistral-small-3.1-24b-instruct:free",  # Second fallback
     ]
     
     def __init__(self, api_key: str):
