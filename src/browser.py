@@ -39,12 +39,12 @@ class FlyerBrowser:
             self.browser = await playwright.chromium.launch(headless=True)
             logger.info("Browser launched successfully")
             
-            logger.info("Creating browser context with typical viewport")
+            logger.info("Creating browser context with high-resolution viewport")
             self.context = await self.browser.new_context(
-                viewport={"width": 1920, "height": 1080},
+                viewport={"width": 3840, "height": 2160},  # 4K resolution for better detail
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             )
-            logger.info("Browser context created with viewport 1920x1080")
+            logger.info("Browser context created with viewport 3840x2160 (4K)")
             
             logger.info("Creating new page")
             self.page = await self.context.new_page()
