@@ -87,63 +87,47 @@ class FlyerBrowser:
     
     async def _dismiss_cookie_banner(self) -> None:
         """
-        Attempt to dismiss cookie consent banners.
-        Tries multiple common selectors and button text patterns (case-insensitive).
-        Prioritizes "Continua senza accettare" (Continue without accepting) for Lidl.
+        Dismiss OneTrust cookie consent banner.
+        Prioritizes the "Continua senza accettare" (Continue without accepting) button.
+        Falls back to other rejection options if primary button not found.
         """
         if not self.page:
             return
         
-        # Button text patterns to look for (case-insensitive)
-        # Priority order: "continue without accepting" > other reject options > accept
-        button_texts = [
-            "Continua senza accettare",  # Italian: "Continue without accepting" (PREFERRED)
-            "continua senza",  # Partial match
-            "rifiuta",  # Italian: "Reject"
-            "reject",  # English: "Reject"
-            "decline",  # English: "Decline"
-            "Personalizza",  # Italian: "Customize" (to avoid broad acceptance)
-        ]
-        
-        # Try text-based selectors first (more reliable)
-        for button_text in button_texts:
-            try:
-                # Case-insensitive button search
-                element = self.page.locator(f"button:has-text('{button_text}')").first
-                if await element.is_visible(timeout=1000):
-                    logger.info(f"Found cookie banner button: '{button_text}' - clicking it")
-                    await element.click()
-                    logger.info("Cookie banner dismissed via text match")
-                    await self.page.wait_for_timeout(500)
-                    return
-            except Exception as e:
-                logger.debug(f"Button text '{button_text}' not found: {e}")
-                continue
-        
-        # Fallback to common CSS selectors if text matching fails
+        # Priority selectors - ordered by preference
         selectors = [
-            "button[id*='cookie']",
-            "button[class*='cookie']",
-            "button[class*='reject']",
-            "[data-testid='cookie-accept']",
-            "#onetrust-accept-btn-handler",
-            ".cookie-consent button",
-            ".cookie-banner button[type='button']:first-child",
+            # OneTrust banner - primary reject button (Lidl uses this)
+            ("#onetrust-reject-all-handler", "OneTrust reject all"),
+            
+            # OneTrust banner - alternative selectors
+            ("button[id*='reject-all']", "OneTrust reject pattern"),
+            ("button.ot-button-order-0", "OneTrust first button"),
+            
+            # Text-based fallback (case-insensitive)
+            ("button:has-text('CONTINUA SENZA')", "Continue without accepting"),
+            ("button:has-text('continua senza')", "Continue (lowercase)"),
+            ("button:has-text('rifiuta')", "Reject (Italian)"),
+            
+            # Generic cookie banner selectors
+            ("button[id*='reject']", "Reject button pattern"),
+            ("button[class*='reject']", "Reject class pattern"),
+            (".cookie-consent button:first-child", "Cookie consent first button"),
         ]
         
-        for selector in selectors:
+        for selector, description in selectors:
             try:
                 element = self.page.locator(selector).first
-                if await element.is_visible(timeout=1000):
-                    logger.debug(f"Found cookie banner via selector: {selector}")
+                if await element.is_visible(timeout=500):
+                    logger.info(f"Found cookie banner button: {description} - clicking it")
                     await element.click()
-                    logger.info("Cookie banner dismissed via CSS selector")
-                    await self.page.wait_for_timeout(500)
+                    logger.info("Cookie banner dismissed successfully")
+                    await self.page.wait_for_timeout(500)  # Wait for banner to disappear
                     return
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Selector '{description}' failed: {e}")
                 continue
         
-        logger.debug("No cookie banner found or already dismissed")
+        logger.debug("No cookie banner detected or already dismissed")
     
     async def get_flyer_page_count(self) -> int:
         """
