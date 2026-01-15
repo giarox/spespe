@@ -97,8 +97,9 @@ class VisionAnalyzer:
         """
         Analyze a flyer page image to extract product information.
         Robust retry and fallback strategy:
-        - 2 retries per model
-        - Auto-switches to next model after 2 failed attempts OR 0 products found
+        - 2 retries ONLY on actual failures (errors, None results)
+        - If model works but finds 0 products → immediately switch to fallback
+        - Auto-switches to next model after 2 failed attempts
         - Maximum 6 total attempts (2 per model × 3 models)
         
         Args:
@@ -113,37 +114,42 @@ class VisionAnalyzer:
             logger.info(f"Trying model {self.current_model_index + 1}/{len(self.MODELS)}: {self.model}")
             logger.info(f"{'='*80}")
             
+            failure_count = 0
+            
             for attempt in range(self.max_retries + 1):
                 try:
                     logger.info(f"Attempt {attempt + 1}/{self.max_retries + 1} with {self.model}")
                     
                     result = self._analyze_with_current_model(image_path)
                     
-                    # Success - got a result
+                    # Model worked - got a result
                     if result is not None:
                         product_count = result.get("total_products_found", 0)
-                        logger.info(f"✓ Model returned {product_count} products")
+                        logger.info(f"✓ Model analyzed successfully, found {product_count} products")
                         
                         # If we found products, success!
                         if product_count > 0:
                             logger.info(f"✓✓ SUCCESS: Extracted {product_count} products with {self.model}")
                             return result
                         
-                        # 0 products found - will try next model after retries exhausted
-                        logger.warning(f"Model found 0 products, will try fallback after retries")
+                        # 0 products found - don't retry, go straight to fallback
+                        logger.warning(f"Model {self.model} found 0 products - switching to fallback immediately")
+                        break  # Break retry loop, go to next model
                     else:
-                        # Result is None - will retry
-                        logger.warning(f"Model returned None, retrying...")
+                        # Result is None - this is a failure, count it
+                        failure_count += 1
+                        logger.warning(f"Model returned None (failure {failure_count}/{self.max_retries + 1})")
                         
                 except Exception as e:
-                    logger.error(f"Attempt {attempt + 1} failed with error: {e}")
+                    failure_count += 1
+                    logger.error(f"Attempt {attempt + 1} failed with error: {e} (failure {failure_count}/{self.max_retries + 1})")
                 
-                # If this was the last retry, move to fallback
-                if attempt == self.max_retries:
-                    logger.warning(f"Max retries ({self.max_retries}) exhausted for {self.model}")
+                # If we reached max failures with this model, move to fallback
+                if failure_count >= self.max_retries + 1:
+                    logger.warning(f"Max failures ({self.max_retries + 1}) reached for {self.model}, trying fallback")
                     break
             
-            # After max retries with this model, try fallback model
+            # After current model exhausted (either 0 products or max failures), try fallback
             if self._switch_to_fallback_model():
                 logger.info(f"Switching to fallback model: {self.model}")
                 continue
