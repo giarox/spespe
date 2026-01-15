@@ -1,0 +1,110 @@
+name: Spespe - Weekly Flyer Scraper
+
+# Scheduled execution: Every Monday at 9 AM UTC
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 9 AM UTC
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      flyer_url:
+        description: 'Flyer URL (optional)'
+        required: false
+        default: ''
+
+jobs:
+  scrape:
+    name: Scrape Lidl Flyer
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+      
+      - name: Log environment
+        run: |
+          echo "Python version:"
+          python --version
+          echo "Playwright version:"
+          python -c "import playwright; print(f'Playwright {playwright.__version__}')"
+          echo "Current working directory:"
+          pwd
+          echo "Repository structure:"
+          ls -la
+      
+      - name: Run scraper
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          FLYER_URL: ${{ github.event.inputs.flyer_url || 'https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1' }}
+        run: |
+          echo "[$(date)] Starting Spespe scraper..."
+          python -m src.main
+          echo "[$(date)] Scraper completed"
+      
+      - name: List output files
+        if: always()
+        run: |
+          echo "Output directory contents:"
+          ls -lh data/output/ 2>/dev/null || echo "No output files yet"
+          echo ""
+          echo "Log files:"
+          ls -lh data/logs/ 2>/dev/null || echo "No logs yet"
+      
+      - name: Upload CSV artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lidl-products
+          path: data/output/*.csv
+          retention-days: 30
+      
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: scraper-logs
+          path: data/logs/*.log
+          retention-days: 7
+      
+      - name: Commit and push results
+        if: success()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are new files
+          if git status --porcelain | grep -q "^??"; then
+            git add data/output/*.csv data/logs/*.log 2>/dev/null || true
+            git commit -m "chore: weekly scrape results $(date -u +%Y-%m-%d)" || echo "No changes to commit"
+            git push origin || echo "Push failed - repository may be read-only"
+          else
+            echo "No new files to commit"
+          fi
+      
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Scraper failed on ${new Date().toISOString().split('T')[0]}`,
+              body: `The Spespe scraper workflow failed. Check the workflow run for details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+            })
