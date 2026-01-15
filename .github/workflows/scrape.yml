@@ -52,6 +52,14 @@ jobs:
           path: data/output/*.csv
           retention-days: 30
 
+      - name: Upload screenshots for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flyer-screenshots
+          path: data/screenshots/*.png
+          retention-days: 7
+
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -59,3 +67,20 @@ jobs:
           name: scraper-logs
           path: data/logs/*.log
           retention-days: 7
+
+      - name: Debug summary
+        if: always()
+        run: |
+          echo "==== SCRAPER DEBUG SUMMARY ===="
+          echo ""
+          echo "Screenshots captured:"
+          ls -lh data/screenshots/*.png 2>/dev/null || echo "No screenshots found"
+          echo ""
+          echo "Products extracted:"
+          ls -lh data/output/*.csv 2>/dev/null || echo "No CSV files found"
+          echo ""
+          echo "Log file:"
+          ls -lh data/logs/*.log 2>/dev/null || echo "No logs found"
+          echo ""
+          echo "Full directory structure:"
+          find data -type f -exec ls -lh {} \;
