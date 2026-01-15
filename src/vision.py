@@ -96,63 +96,62 @@ class VisionAnalyzer:
     def analyze_flyer_page(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
         Analyze a flyer page image to extract product information.
-        Smart retry with fallback: only switches models if 0 products found.
+        Robust retry and fallback strategy:
+        - 2 retries per model
+        - Auto-switches to next model after 2 failed attempts OR 0 products found
+        - Maximum 6 total attempts (2 per model × 3 models)
         
         Args:
             image_path: Path to flyer screenshot
             
         Returns:
-            Dictionary with extracted product data, or None if analysis fails
+            Dictionary with extracted product data, or None if all models fail
         """
-        for attempt in range(self.max_retries + 1):
-            try:
-                logger.info(f"Starting vision analysis on image: {image_path} (attempt {attempt + 1}/{self.max_retries + 1})")
-                logger.info(f"Using model: {self.model}")
-                
-                result = self._analyze_with_current_model(image_path)
-                if result is not None:
-                    product_count = result.get("total_products_found", 0)
-                    logger.info(f"Analysis found {product_count} products")
+        # Try each model with retries
+        while self.current_model_index < len(self.MODELS):
+            logger.info(f"\n{'='*80}")
+            logger.info(f"Trying model {self.current_model_index + 1}/{len(self.MODELS)}: {self.model}")
+            logger.info(f"{'='*80}")
+            
+            for attempt in range(self.max_retries + 1):
+                try:
+                    logger.info(f"Attempt {attempt + 1}/{self.max_retries + 1} with {self.model}")
                     
-                    # If we found products, return immediately (success!)
-                    if product_count > 0:
-                        logger.info(f"✓ Successfully extracted {product_count} products with {self.model}")
-                        return result
+                    result = self._analyze_with_current_model(image_path)
                     
-                    # If 0 products found with current model, try fallback
-                    logger.warning(f"Model {self.model} found 0 products")
-                    if self._switch_to_fallback_model():
-                        logger.info(f"Switching to fallback model: {self.model}")
-                        try:
-                            fallback_result = self._analyze_with_current_model(image_path)
-                            if fallback_result is not None:
-                                fallback_product_count = fallback_result.get("total_products_found", 0)
-                                logger.info(f"Fallback model found {fallback_product_count} products")
-                                if fallback_product_count > 0:
-                                    logger.info(f"✓ Successfully extracted {fallback_product_count} products with {self.model}")
-                                    return fallback_result
-                        except Exception as fallback_error:
-                            logger.error(f"Fallback model failed: {fallback_error}")
+                    # Success - got a result
+                    if result is not None:
+                        product_count = result.get("total_products_found", 0)
+                        logger.info(f"✓ Model returned {product_count} products")
+                        
+                        # If we found products, success!
+                        if product_count > 0:
+                            logger.info(f"✓✓ SUCCESS: Extracted {product_count} products with {self.model}")
+                            return result
+                        
+                        # 0 products found - will try next model after retries exhausted
+                        logger.warning(f"Model found 0 products, will try fallback after retries")
                     else:
-                        logger.error("No more fallback models available")
-                    
-                    # If all models found 0 products, return the first result anyway
-                    logger.warning("All models found 0 products, returning first result")
-                    return result
+                        # Result is None - will retry
+                        logger.warning(f"Model returned None, retrying...")
+                        
+                except Exception as e:
+                    logger.error(f"Attempt {attempt + 1} failed with error: {e}")
                 
-            except Exception as e:
-                logger.error(f"Analysis attempt {attempt + 1} failed: {e}")
+                # If this was the last retry, move to fallback
                 if attempt == self.max_retries:
-                    logger.error(f"Max retries ({self.max_retries}) reached with {self.model}")
-                    # Try fallback even on error
-                    if self._switch_to_fallback_model():
-                        logger.info(f"Trying fallback model after error: {self.model}")
-                        try:
-                            return self._analyze_with_current_model(image_path)
-                        except Exception as fallback_error:
-                            logger.error(f"Fallback model also failed: {fallback_error}")
-                            return None
+                    logger.warning(f"Max retries ({self.max_retries}) exhausted for {self.model}")
+                    break
+            
+            # After max retries with this model, try fallback model
+            if self._switch_to_fallback_model():
+                logger.info(f"Switching to fallback model: {self.model}")
+                continue
+            else:
+                logger.error("No more fallback models available")
+                break
         
+        logger.error("All models exhausted - returning None")
         return None
     
     def _analyze_with_current_model(self, image_path: str) -> Optional[Dict[str, Any]]:
