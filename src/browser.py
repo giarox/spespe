@@ -73,6 +73,9 @@ class FlyerBrowser:
             await self.page.goto(url, wait_until="networkidle", timeout=30000)
             logger.info("Page navigation completed (networkidle reached)")
             
+            # Dismiss cookie banner if present
+            await self._dismiss_cookie_banner()
+            
             logger.info("Waiting 2 seconds for flyer viewer to fully render")
             await self.page.wait_for_timeout(2000)
             
@@ -81,6 +84,43 @@ class FlyerBrowser:
         except Exception as e:
             logger.error(f"Navigation failed for {url}: {e}", exc_info=True)
             return False
+    
+    async def _dismiss_cookie_banner(self) -> None:
+        """
+        Attempt to dismiss cookie consent banners.
+        Tries multiple common selectors for different cookie banner implementations.
+        """
+        if not self.page:
+            return
+        
+        # Common cookie banner selectors
+        selectors = [
+            "button[id*='cookie']",  # ID contains 'cookie'
+            "button[class*='cookie']",  # Class contains 'cookie'
+            "button[class*='accept']",  # Class contains 'accept'
+            "[data-testid='cookie-accept']",  # Data attribute
+            "button:has-text('Accept')",  # Button with text 'Accept'
+            "button:has-text('Accetta')",  # Italian: 'Accept'
+            "button:has-text('OK')",  # Generic OK
+            ".cookie-consent button",  # Cookie consent wrapper
+            "#onetrust-accept-btn-handler",  # OneTrust banner (common)
+            ".cookie-banner button[type='button']:first-child",  # First button in cookie banner
+        ]
+        
+        for selector in selectors:
+            try:
+                element = self.page.locator(selector).first
+                if await element.is_visible(timeout=1000):
+                    logger.debug(f"Found cookie banner element: {selector}")
+                    await element.click()
+                    logger.info("Cookie banner dismissed")
+                    await self.page.wait_for_timeout(500)  # Wait for banner to disappear
+                    return
+            except Exception:
+                # Selector not found or click failed, try next
+                continue
+        
+        logger.debug("No cookie banner found or already dismissed")
     
     async def get_flyer_page_count(self) -> int:
         """
