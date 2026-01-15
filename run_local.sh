@@ -12,7 +12,7 @@ if [ -z "$OPENROUTER_API_KEY" ]; then
     echo "❌ ERROR: OPENROUTER_API_KEY environment variable not set"
     echo ""
     echo "Set it with:"
-    echo "  export OPENROUTER_API_KEY='***REMOVED***'"
+    echo "  export OPENROUTER_API_KEY='sk-or-v1-YOUR_API_KEY_HERE'"
     echo ""
     exit 1
 fi

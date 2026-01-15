@@ -37,7 +37,7 @@ The scraper is ready to run but needs the OpenRouter API key configured as a Git
 
 3. Create this secret:
    - **Name**: `OPENROUTER_API_KEY`
-   - **Value**: `***REMOVED***`
+   - **Value**: `sk-or-v1-YOUR_API_KEY_HERE`
 
 4. Click **"Add secret"**
 
@@ -48,7 +48,7 @@ After this, the GitHub Actions workflow will be able to run!
 If you have the GitHub CLI installed:
 
 ```bash
-gh secret set OPENROUTER_API_KEY --body "***REMOVED***" -R giarox/spespe
+gh secret set OPENROUTER_API_KEY --body "sk-or-v1-YOUR_API_KEY_HERE" -R giarox/spespe
 ```
 
 ## Push Code to GitHub
@@ -75,7 +75,7 @@ pip install -r requirements.txt
 playwright install chromium
 
 # 2. Set environment variable
-export OPENROUTER_API_KEY="***REMOVED***"
+export OPENROUTER_API_KEY="sk-or-v1-YOUR_API_KEY_HERE"
 
 # 3. Run the scraper
 python -m src.main

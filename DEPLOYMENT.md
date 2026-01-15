@@ -37,7 +37,7 @@ Due to fine-grained token limitations, the secret must be set via the GitHub UI.
 2. Click **"New repository secret"** button
 3. Enter:
    - **Name:** `OPENROUTER_API_KEY`
-   - **Value:** `***REMOVED***`
+   - **Value:** `sk-or-v1-YOUR_API_KEY_HERE`
 4. Click **"Add secret"**
 
 **Verification:**
@@ -164,7 +164,7 @@ Test locally to ensure everything works:
 
 ```bash
 # 1. Set API key
-export OPENROUTER_API_KEY="***REMOVED***"
+export OPENROUTER_API_KEY="sk-or-v1-YOUR_API_KEY_HERE"
 
 # 2. Run the scraper
 bash run_local.sh

@@ -8,7 +8,7 @@ Go to: **github.com/giarox/spespe/settings/secrets/actions**
 
 Click "New repository secret":
 - **Name**: `OPENROUTER_API_KEY`
-- **Value**: `***REMOVED***`
+- **Value**: `sk-or-v1-YOUR_API_KEY_HERE`
 
 ### Step 2: Push Code to GitHub (1 min)
 
@@ -33,7 +33,7 @@ You should see:
 
 ```bash
 # 1. Set environment variable
-export OPENROUTER_API_KEY="***REMOVED***"
+export OPENROUTER_API_KEY="sk-or-v1-YOUR_API_KEY_HERE"
 
 # 2. Run the scraper
 bash run_local.sh

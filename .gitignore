@@ -1,7 +1,13 @@
-# Environment variables
+# Environment variables - NEVER commit!
 .env
 .env.local
 .env.*.local
+.env.*
+*.env
+secrets/
+.secrets/
+credentials.json
+secrets.json
 
 # Python
 __pycache__/
@@ -53,3 +59,30 @@ data/logs/
 # Temporary files
 *.tmp
 *.temp
+
+# SSH keys
+*.pem
+*.key
+*.pub
+id_rsa*
+id_ed25519*
+
+# OS secrets
+.aws/
+.ssh/
+.gpg/
+
+# IDE secrets
+.env.local.vscode
+.vscode/settings.json
+
+# Sensitive data patterns
+*secret*
+*password*
+*token*
+*api?key*
+*api_key*
+*apikey*
+*.private
+*.oauth
+session-ses_43c3.md

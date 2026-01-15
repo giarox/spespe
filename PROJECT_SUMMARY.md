@@ -228,7 +228,7 @@ PASSED 11/11 ✅
    ```
    GitHub → Settings → Secrets → New repository secret
    Name: OPENROUTER_API_KEY
-   Value: ***REMOVED***
+   Value: sk-or-v1-YOUR_API_KEY_HERE
    ```
 
 2. **Push Code** (1 min)
