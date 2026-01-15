@@ -13,7 +13,13 @@ from src.logger import logger
 
 
 class VisionAnalyzer:
-    """Handles image analysis using OpenRouter Molmo2 8B."""
+    """Handles image analysis using OpenRouter with retry logic and fallback models."""
+    
+    # Models in order of preference
+    MODELS = [
+        "allenai/molmo-2-8b:free",  # Primary model
+        "black-forest-labs/flux.2-klein-4b",  # Fallback model
+    ]
     
     def __init__(self, api_key: str):
         """
@@ -30,11 +36,14 @@ class VisionAnalyzer:
             raise ValueError("OpenRouter API key must start with 'sk-or-'")
         
         self.api_key = api_key
-        self.model = "allenai/molmo-2-8b:free"
+        self.model = self.MODELS[0]  # Start with primary model
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
+        self.current_model_index = 0
+        self.max_retries = 2
         
         logger.info(f"VisionAnalyzer initialized with model: {self.model}")
         logger.info(f"API endpoint: {self.base_url}")
+        logger.info(f"Retry policy: {self.max_retries} retries + {len(self.MODELS)-1} fallback models")
     
     def _encode_image_to_base64(self, image_path: str) -> str:
         """
@@ -69,9 +78,63 @@ class VisionAnalyzer:
             logger.error(f"Failed to encode image: {e}", exc_info=True)
             raise
     
+    def _switch_to_fallback_model(self) -> bool:
+        """
+        Switch to next fallback model.
+        
+        Returns:
+            True if fallback model available, False otherwise
+        """
+        if self.current_model_index < len(self.MODELS) - 1:
+            self.current_model_index += 1
+            self.model = self.MODELS[self.current_model_index]
+            logger.warning(f"Switching to fallback model: {self.model}")
+            return True
+        return False
+    
     def analyze_flyer_page(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
         Analyze a flyer page image to extract product information.
+        With retry logic and fallback models.
+        
+        Args:
+            image_path: Path to flyer screenshot
+            
+        Returns:
+            Dictionary with extracted product data, or None if analysis fails
+        """
+        for attempt in range(self.max_retries + 1):
+            try:
+                logger.info(f"Starting vision analysis on image: {image_path} (attempt {attempt + 1}/{self.max_retries + 1})")
+                logger.info(f"Using model: {self.model}")
+                
+                result = self._analyze_with_current_model(image_path)
+                if result is not None:
+                    return result
+                
+            except Exception as e:
+                logger.error(f"Analysis attempt {attempt + 1} failed: {e}")
+                
+                # After max retries with current model, try fallback
+                if attempt == self.max_retries:
+                    if self._switch_to_fallback_model():
+                        logger.info(f"Max retries reached, trying fallback model: {self.model}")
+                        try:
+                            result = self._analyze_with_current_model(image_path)
+                            if result is not None:
+                                return result
+                        except Exception as fallback_error:
+                            logger.error(f"Fallback model also failed: {fallback_error}")
+                            return None
+                    else:
+                        logger.error("No more fallback models available")
+                        return None
+        
+        return None
+    
+    def _analyze_with_current_model(self, image_path: str) -> Optional[Dict[str, Any]]:
+        """
+        Internal method to analyze with current model (no retry logic).
         
         Args:
             image_path: Path to flyer screenshot
@@ -80,8 +143,6 @@ class VisionAnalyzer:
             Dictionary with extracted product data, or None if analysis fails
         """
         try:
-            logger.info(f"Starting vision analysis on image: {image_path}")
-            
             # Encode image
             image_data = self._encode_image_to_base64(image_path)
             
