@@ -37,7 +37,7 @@ class FlyerBrowser:
             
             logger.info("Starting Chromium browser process")
             self.browser = await playwright.chromium.launch(headless=True)
-            logger.info(f"Browser launched successfully. PID: {self.browser.process.pid if self.browser.process else 'N/A'}")
+            logger.info("Browser launched successfully")
             
             logger.info("Creating browser context with typical viewport")
             self.context = await self.browser.new_context(
