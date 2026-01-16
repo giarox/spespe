@@ -1,10 +1,12 @@
 """
-AI Vision integration using OpenRouter Molmo2 8B model.
-Handles image analysis for product extraction.
+AI Vision integration using OpenRouter vision models.
+Handles image analysis for product extraction with intelligent fallback strategy.
 """
 
 import base64
 import json
+import hashlib
+import re
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -13,10 +15,9 @@ from src.logger import logger
 
 
 class VisionAnalyzer:
-    """Handles image analysis using OpenRouter with retry logic and fallback models."""
+    """Handles image analysis using OpenRouter with intelligent fallback and image verification."""
     
-    # Models in order of preference (will try sequentially if previous fails validation)
-    # Fallback triggered if: API error, None result, 0 products, OR no "Broccoli" found
+    # Models in order of preference (tries sequentially until Broccoli found)
     MODELS = [
         "allenai/molmo-2-8b:free",                          # 1. Primary model
         "nvidia/nemotron-nano-12b-v2-vl:free",             # 2. First fallback
@@ -42,23 +43,14 @@ class VisionAnalyzer:
             raise ValueError("OpenRouter API key must start with 'sk-or-'")
         
         self.api_key = api_key
-        self.model = self.MODELS[0]  # Start with primary model
+        self.model = self.MODELS[0]
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
         self.current_model_index = 0
-        self.max_retries = 2
         
         logger.info(f"VisionAnalyzer initialized with {len(self.MODELS)} models in fallback chain")
         logger.info(f"Primary model: {self.model}")
-        logger.info(f"Fallback models: {len(self.MODELS)-1}")
-        logger.info(f"  1. {self.MODELS[0]}")
-        logger.info(f"  2. {self.MODELS[1]}")
-        logger.info(f"  3. {self.MODELS[2]}")
-        logger.info(f"  4. {self.MODELS[3]}")
-        logger.info(f"  5. {self.MODELS[4]}")
-        logger.info(f"  6. {self.MODELS[5]}")
-        logger.info(f"  7. {self.MODELS[6]}")
-        logger.info(f"API endpoint: {self.base_url}")
-        logger.info(f"Retry policy: {self.max_retries} retries per model + validation-based fallback")
+        logger.info(f"Fallback strategy: One attempt per model + one retry on API error only")
+        logger.info(f"Validation: Products with 'Broccoli' trigger success and stop chain")
     
     def _encode_image_to_base64(self, image_path: str) -> str:
         """
@@ -93,6 +85,34 @@ class VisionAnalyzer:
             logger.error(f"Failed to encode image: {e}", exc_info=True)
             raise
     
+    def _calculate_image_hash(self, image_path: str) -> str:
+        """
+        Calculate SHA256 hash of image file.
+        
+        Args:
+            image_path: Path to image file
+            
+        Returns:
+            SHA256 hash string
+        """
+        try:
+            sha256_hash = hashlib.sha256()
+            with open(image_path, "rb") as f:
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            return sha256_hash.hexdigest()
+        except Exception as e:
+            logger.warning(f"Failed to calculate image hash: {e}")
+            return "unknown"
+    
+    def _get_image_size_mb(self, image_path: str) -> float:
+        """Get image file size in MB."""
+        try:
+            size_bytes = Path(image_path).stat().st_size
+            return round(size_bytes / (1024 * 1024), 2)
+        except:
+            return 0.0
+    
     def _switch_to_fallback_model(self) -> bool:
         """
         Switch to next fallback model.
@@ -103,7 +123,7 @@ class VisionAnalyzer:
         if self.current_model_index < len(self.MODELS) - 1:
             self.current_model_index += 1
             self.model = self.MODELS[self.current_model_index]
-            logger.warning(f"Switching to fallback model: {self.model}")
+            logger.warning(f"Switching to model {self.current_model_index + 1}/{len(self.MODELS)}: {self.model}")
             return True
         return False
     
@@ -111,24 +131,25 @@ class VisionAnalyzer:
         """
         Validate extraction quality by checking for known products.
         
-        For Lidl flyers, "Broccoli" is a known reliable product that should
-        be extracted if the model is working correctly. If extraction finds
-        many products but NOT Broccoli, it indicates hallucination.
+        For Lidl flyers, "Broccoli" is a known product that should be extracted
+        if the model is working correctly. If extraction finds many products but NOT
+        Broccoli, it indicates hallucination (model making up products).
         
         Args:
             result: Analysis result from model
             
         Returns:
-            True if extraction looks valid, False if likely hallucinating
+            True if extraction looks valid (has Broccoli), False if hallucinating
         """
         if not result or not result.get("products"):
-            # No products found - could be 0 products or error
-            return True  # Let other logic handle this
+            # No products found - not hallucinating, just no data
+            logger.info("Validation: 0 products found (not hallucinating)")
+            return True
         
         # Get all product names (lowercase for comparison)
         product_names = [p.get('name', '').lower() for p in result.get('products', [])]
         
-        # Check for known Broccoli variants
+        # Check for known Broccoli variants (this is our secret check!)
         broccoli_keywords = ['broccoli', 'brocoli', 'broccolo']
         found_broccoli = any(
             any(keyword in name for keyword in broccoli_keywords)
@@ -138,25 +159,175 @@ class VisionAnalyzer:
         product_count = result.get('total_products_found', len(result.get('products', [])))
         
         if found_broccoli:
-            logger.info(f"✓ Validation PASSED: Found 'Broccoli' among {product_count} products - extraction is valid")
+            logger.info(f"✓ Validation PASSED: Found 'Broccoli' among {product_count} products")
             return True
         elif product_count > 0:
-            logger.warning(f"⚠ Validation FAILED: Found {product_count} products but NO 'Broccoli' - likely hallucinating")
+            logger.warning(f"✗ Validation FAILED: Found {product_count} products but NO 'Broccoli' - likely hallucinating")
             return False
         else:
-            logger.info(f"Validation: 0 products found (not hallucinating, but no data)")
-            return True  # Not hallucinating, just no products
+            return True  # 0 products - not hallucinating
+    
+    def _verify_image_upload(self, image_path: str) -> Dict[str, Any]:
+        """
+        Verify image was received by model using 3 methods:
+        A: Hash acknowledgment
+        B: Content verification (colors, supermarket identification)
+        C: Metadata acknowledgment (resolution)
+        
+        Args:
+            image_path: Path to image file
+            
+        Returns:
+            Dict with verification results and confidence score (0-3)
+        """
+        logger.info(f"Verifying image upload with {self.model}...")
+        
+        image_hash = self._calculate_image_hash(image_path)
+        image_size_mb = self._get_image_size_mb(image_path)
+        
+        verification_results = {
+            "method_a": False,
+            "method_b": False,
+            "method_c": False,
+            "confidence": 0,
+            "details": {}
+        }
+        
+        try:
+            # METHOD A: Hash verification
+            logger.info("  [A] Verifying image hash...")
+            prompt_a = f"""This image has a SHA256 hash of: {image_hash[:16]}... (truncated for brevity)
+Can you confirm you can process and analyze images? Answer with just "YES" or "NO"."""
+            
+            response_a = self._call_api_for_verification(prompt_a, image_path)
+            method_a_pass = response_a and "yes" in response_a.lower()
+            verification_results["method_a"] = method_a_pass
+            verification_results["details"]["method_a"] = response_a
+            logger.info(f"    {'✓ PASS' if method_a_pass else '✗ FAIL'}: {response_a[:50] if response_a else 'No response'}")
+            
+            # METHOD B: Content verification (3 questions)
+            logger.info("  [B] Verifying image content...")
+            prompt_b = """Look at this supermarket flyer image carefully.
+Answer these 3 questions:
+1. What is the dominant color scheme of this flyer? (Answer: Red, Blue, Yellow, White, Black, or other)
+2. Is this a supermarket flyer or something else? (Answer: Supermarket or Other)
+3. What supermarket brand is this from based on logos? (Answer: Lidl, Aldi, Carrefour, Tesco, or other name)
+
+Format your answer as: COLOR: [color] | FLYER_TYPE: [type] | SUPERMARKET: [name]"""
+            
+            response_b = self._call_api_for_verification(prompt_b, image_path)
+            method_b_pass = False
+            if response_b:
+                response_b_lower = response_b.lower()
+                # Check if all 3 answers are present and reasonable
+                has_color = any(c in response_b_lower for c in ['red', 'blue', 'yellow', 'white', 'black', 'color'])
+                has_flyer = 'supermarket' in response_b_lower
+                has_brand = 'lidl' in response_b_lower or 'aldi' in response_b_lower or any(
+                    brand in response_b_lower for brand in ['carrefour', 'tesco', 'coop', 'penny', 'kaufland']
+                )
+                method_b_pass = has_color and has_flyer and has_brand
+            
+            verification_results["method_b"] = method_b_pass
+            verification_results["details"]["method_b"] = response_b
+            logger.info(f"    {'✓ PASS' if method_b_pass else '✗ FAIL'}: {response_b[:80] if response_b else 'No response'}")
+            
+            # METHOD C: Metadata verification
+            logger.info("  [C] Verifying image metadata...")
+            prompt_c = f"""This is a high-resolution image (approximately {image_size_mb}MB, 4K resolution: 3840x2160 pixels).
+Can you confirm you received a high-resolution/4K image? Answer with just "YES" or "NO"."""
+            
+            response_c = self._call_api_for_verification(prompt_c, image_path)
+            method_c_pass = response_c and "yes" in response_c.lower()
+            verification_results["method_c"] = method_c_pass
+            verification_results["details"]["method_c"] = response_c
+            logger.info(f"    {'✓ PASS' if method_c_pass else '✗ FAIL'}: {response_c[:50] if response_c else 'No response'}")
+            
+            # Calculate confidence score
+            confidence_count = sum([method_a_pass, method_b_pass, method_c_pass])
+            verification_results["confidence"] = confidence_count
+            
+            logger.info(f"Image Upload Confidence: {confidence_count}/3")
+            logger.info(f"  A (Hash): {'PASS' if method_a_pass else 'FAIL'}")
+            logger.info(f"  B (Content): {'PASS' if method_b_pass else 'FAIL'}")
+            logger.info(f"  C (Metadata): {'PASS' if method_c_pass else 'FAIL'}")
+            
+        except Exception as e:
+            logger.warning(f"Image verification failed: {e}")
+            verification_results["confidence"] = 0
+        
+        return verification_results
+    
+    def _call_api_for_verification(self, verification_prompt: str, image_path: str) -> Optional[str]:
+        """
+        Call API with verification question and image.
+        
+        Args:
+            verification_prompt: Verification question
+            image_path: Path to image
+            
+        Returns:
+            Model's response or None if failed
+        """
+        try:
+            image_data = self._encode_image_to_base64(image_path)
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/giarox/spespe",
+                "X-Title": "Spespe Supermarket Price Scraper",
+            }
+            
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/png",
+                                    "data": image_data,
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": verification_prompt
+                            }
+                        ]
+                    }
+                ],
+                "max_tokens": 100,  # Short response for verification
+                "temperature": 0.3,
+            }
+            
+            response = requests.post(self.base_url, headers=headers, json=payload, timeout=60)
+            
+            if response.status_code == 200:
+                response_data = response.json()
+                if "choices" in response_data and response_data["choices"]:
+                    return response_data["choices"][0]["message"]["content"]
+            
+            return None
+            
+        except Exception as e:
+            logger.debug(f"Verification API call failed: {e}")
+            return None
     
     def analyze_flyer_page(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
         Analyze a flyer page image to extract product information.
-        Robust retry and fallback strategy with 7 models:
-        - 2 retries ONLY on actual failures (errors, None results)
-        - If model works but finds 0 products → immediately switch to fallback
-        - If model finds products but NO "Broccoli" → hallucination detected, switch
-        - Auto-switches to next model after 2 failed attempts
-        - Maximum 14 total attempts (2 per model × 7 models)
-        - Will keep trying until valid extraction found or all models exhausted
+        
+        Fallback strategy (7 models):
+        - For each model: Try once
+        - If API error: Retry once (2 total attempts)
+        - If result found: Validate (check for Broccoli)
+        - If Broccoli found: Return immediately (stop chain)
+        - If no Broccoli (hallucinating): Try next model
+        - If error or None: Try next model
+        - Maximum 14 attempts (2 per model × 7 models)
         
         Args:
             image_path: Path to flyer screenshot
@@ -164,64 +335,84 @@ class VisionAnalyzer:
         Returns:
             Dictionary with extracted product data, or None if all models fail
         """
-        # Try each model with retries
-        while self.current_model_index < len(self.MODELS):
-            logger.info(f"\n{'='*80}")
-            logger.info(f"Trying model {self.current_model_index + 1}/{len(self.MODELS)}: {self.model}")
-            logger.info(f"{'='*80}")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"Starting product extraction with {len(self.MODELS)} models")
+        logger.info(f"{'='*80}")
+        
+        # Try each model in sequence
+        for model_attempt_index in range(len(self.MODELS)):
+            self.model = self.MODELS[model_attempt_index]
+            logger.info(f"\n[Model {model_attempt_index + 1}/{len(self.MODELS)}] {self.model}")
+            logger.info(f"{'-'*80}")
             
-            failure_count = 0
+            # Try once, with one retry on API error
+            api_failures = 0
+            result = None
             
-            for attempt in range(self.max_retries + 1):
+            # Loop: try up to 2 times (initial try + 1 retry on API error)
+            while api_failures < 2:
+                attempt_num = api_failures + 1
+                logger.info(f"Attempt {attempt_num}/2...")
+                
                 try:
-                    logger.info(f"Attempt {attempt + 1}/{self.max_retries + 1} with {self.model}")
-                    
+                    # Call API
                     result = self._analyze_with_current_model(image_path)
                     
-                    # Model worked - got a result
                     if result is not None:
-                        product_count = result.get("total_products_found", 0)
-                        logger.info(f"✓ Model analyzed successfully, found {product_count} products")
-                        
-                        # Validate extraction quality
-                        is_valid = self._validate_extraction(result)
-                        
-                        # If extraction is valid, success!
-                        if is_valid:
-                            logger.info(f"✓✓ SUCCESS: Extracted {product_count} valid products with {self.model}")
-                            return result
-                        
-                        # Validation failed (likely hallucinating) - go to next model
-                        logger.warning(f"Extraction validation failed (hallucination detected) - switching to fallback immediately")
-                        break  # Break retry loop, go to next model
+                        # Got a result - stop retrying this model
+                        product_count = result.get("total_products_found", len(result.get("products", [])))
+                        logger.info(f"✓ API call successful: Found {product_count} products")
+                        break  # Exit retry loop
                     else:
-                        # Result is None - this is a failure, count it
-                        failure_count += 1
-                        logger.warning(f"Model returned None (failure {failure_count}/{self.max_retries + 1})")
+                        # None result (not API error, just model didn't return valid result)
+                        logger.warning("Model returned None (not API error)")
+                        break  # Exit retry loop, move to next model
+                        
+                except requests.exceptions.RequestException as e:
+                    # API error - we can retry
+                    api_failures += 1
+                    logger.warning(f"API error (attempt {attempt_num}/2): {str(e)[:100]}")
+                    if api_failures >= 2:
+                        logger.warning("Max API retries reached for this model")
+                        break
                         
                 except Exception as e:
-                    failure_count += 1
-                    logger.error(f"Attempt {attempt + 1} failed with error: {e} (failure {failure_count}/{self.max_retries + 1})")
-                
-                # If we reached max failures with this model, move to fallback
-                if failure_count >= self.max_retries + 1:
-                    logger.warning(f"Max failures ({self.max_retries + 1}) reached for {self.model}, trying fallback")
+                    # Other error
+                    logger.error(f"Unexpected error: {e}")
                     break
             
-            # After current model exhausted (either 0 products or max failures), try fallback
-            if self._switch_to_fallback_model():
-                logger.info(f"Switching to fallback model: {self.model}")
+            # Check if we got a result
+            if result is None:
+                logger.info("No valid result from this model - trying next model")
+                self.current_model_index += 1
                 continue
+            
+            # Validate result (check for Broccoli)
+            product_count = result.get("total_products_found", len(result.get("products", [])))
+            logger.info(f"Validating extraction ({product_count} products)...")
+            
+            is_valid = self._validate_extraction(result)
+            
+            if is_valid:
+                # Found Broccoli! Stop the chain
+                logger.info(f"✓✓ SUCCESS: Extraction valid - stopping chain")
+                logger.info(f"{'='*80}")
+                return result
             else:
-                logger.error("No more fallback models available")
-                break
+                # Hallucination detected - try next model
+                logger.warning("Extraction invalid - trying next model")
+                self.current_model_index += 1
+                continue
         
-        logger.error("All models exhausted - returning None")
+        # All models exhausted
+        logger.error(f"{'='*80}")
+        logger.error("All models exhausted - no valid extraction found")
+        logger.error(f"{'='*80}")
         return None
     
     def _analyze_with_current_model(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
-        Internal method to analyze with current model (no retry logic).
+        Analyze with current model (no retry logic).
         
         Args:
             image_path: Path to flyer screenshot
@@ -233,52 +424,31 @@ class VisionAnalyzer:
             # Encode image
             image_data = self._encode_image_to_base64(image_path)
             
-            # Create prompt for product extraction
-            prompt = """You are analyzing a supermarket flyer image (typically Lidl). Extract ALL visible products with their prices.
+            # Concise prompt without mentioning Broccoli
+            prompt = """Extract ALL visible products from this supermarket flyer.
 
-IMPORTANT: A "product" is a distinct item with:
-- A product name/description (visible as text)
-- A current price (required - numbers like 0.89, 4.99, 119.00)
-- Product details (quantity, weight, units - may be optional)
+A product has:
+- Name/description (visible text)
+- Current price (required: format like 0.89, 4.99)
+- Optional: weight, discount, old price
 
-PRICE FORMAT NOTES:
-- Prices shown as numbers: 0.89, 4.99, etc. (NO € symbol usually shown separately)
-- Decimal separator may be comma (0,89) or dot (0.89) - normalize both to dots
-- Old/original prices often smaller, struck through, or in different color
-- Discounts shown as "-30%", "-€2.00", etc. near the product
+PRICES: Numbers like 0.89, 4.99. Decimals use dot or comma (both OK).
+Discounts shown as -30% or -€2.00. Old prices may be struck through.
 
-PRODUCT LAYOUT CLUES (Lidl flyers):
-- Products arranged in grid/rows with product images
-- Price positioned below or beside product image
-- Quantity/weight info: "500g confezione", "4 x 170g", "650g"
-- Discount badges near price: "-31%", "-2.00€", "-30%"
-- Some products have unit pricing: "(1 kg = 1.78€)"
-- Valid date info may be present: "da giovedì 22/01"
-- Ignore: marketing text, logos, decorative elements, text NOT associated with a product
+LAYOUT: Products in grid/rows. Prices below or beside images.
+Weight: 500g, 650g. Discounts near prices. Unit pricing: (1 kg = 1.78€)
 
-CONFIDENCE THRESHOLD:
-- Only include products where you are confident (≥0.7) about:
-  * Product name is clearly readable
-  * Current price is clearly visible and numeric
-- Skip fuzzy/low-confidence extractions
+Only include products you're highly confident about (≥0.7 confidence).
 
-FOR EACH PRODUCT, extract:
-1. "name": Exact product name/description as shown (string)
-2. "current_price": Current/sale price as number string "X.XX" (required)
-3. "original_price": Original price if visible, else null (optional)
-4. "discount_percent": Discount as shown "-30%" or null if not visible (optional)
-5. "discount_amount": Discount as "€X.XX" if shown, else null (optional)
-6. "details": Weight, quantity, units "500g", "4x170g", "650g" (optional)
-7. "description": Any extra info like unit price "(1 kg = 1.78€)" or validity date (optional)
-8. "confidence": Your confidence 0.0-1.0 that extraction is accurate (required)
+For each product, extract:
+- name: Product name (string)
+- current_price: Current price as "X.XX" (required)
+- original_price: Old price if visible (null otherwise)
+- discount_percent: "-30%" or null
+- details: Weight/quantity or null
+- confidence: 0.0-1.0 confidence score
 
-EXAMPLES from typical Lidl flyer:
-- "Broccoli 500g", current_price: "0.89", discount_percent: "-31%", details: "500g"
-- "Filetto di petto di pollo a fette 650g", current_price: "4.99", discount_amount: "-€2.00", details: "650g"
-- "Realforno Frollini 700g", current_price: "1.39", discount_percent: "-30%", original_price: "1.99"
-- "Macchina da cucire Singer", current_price: "119.00", discount_percent: null, description: "MEGA AFFARE!"
-
-Return ONLY valid JSON (no extra text):
+Return ONLY valid JSON (no markdown, no text):
 {
     "products": [
         {
@@ -286,23 +456,15 @@ Return ONLY valid JSON (no extra text):
             "current_price": "X.XX",
             "original_price": null,
             "discount_percent": null,
-            "discount_amount": null,
             "details": "500g",
-            "description": null,
-            "confidence": 0.95
+            "confidence": 0.9
         }
     ],
-    "total_products_found": 5,
-    "quality_notes": "Clear, readable flyer with visible prices"
-}
-
-If no products found or image is unclear, return:
-{"products": [], "total_products_found": 0, "quality_notes": "No readable products visible"}
-
-CRITICAL: Return ONLY the JSON object, nothing else. Do not add markdown or text around the JSON.
-"""
+    "total_products_found": 1,
+    "quality_notes": "Description of image quality"
+}"""
             
-            logger.debug(f"Sending request to OpenRouter API (model: {self.model})")
+            logger.debug(f"Sending request to OpenRouter API")
             logger.debug(f"Prompt length: {len(prompt)} characters")
             
             headers = {
@@ -334,37 +496,30 @@ CRITICAL: Return ONLY the JSON object, nothing else. Do not add markdown or text
                     }
                 ],
                 "max_tokens": 2000,
-                "temperature": 0.3,  # Low temperature for consistent extraction
+                "temperature": 0.3,
             }
             
-            logger.debug(f"Request payload size: {len(json.dumps(payload))} bytes")
-            
             # Make API request
-            logger.info("Sending request to OpenRouter API...")
             response = requests.post(self.base_url, headers=headers, json=payload, timeout=60)
             
-            logger.info(f"API response status: {response.status_code}")
-            logger.debug(f"Response headers: {dict(response.headers)}")
+            logger.debug(f"API response status: {response.status_code}")
             
             if response.status_code != 200:
-                logger.error(f"API error {response.status_code}: {response.text}")
+                logger.error(f"API error {response.status_code}: {response.text[:200]}")
                 return None
             
             # Parse response
             response_data = response.json()
-            logger.debug(f"Response JSON size: {len(json.dumps(response_data))} bytes")
             
             if "choices" not in response_data or not response_data["choices"]:
-                logger.error("Invalid API response format: no choices")
+                logger.error("Invalid API response format")
                 return None
             
             content = response_data["choices"][0]["message"]["content"]
             logger.debug(f"Model response length: {len(content)} characters")
             
             # Extract JSON from response
-            logger.info("Parsing model response as JSON...")
             try:
-                # Try direct JSON parse first
                 result = json.loads(content)
             except json.JSONDecodeError:
                 # Try to extract JSON from text
@@ -379,19 +534,21 @@ CRITICAL: Return ONLY the JSON object, nothing else. Do not add markdown or text
                     return None
             
             product_count = result.get("total_products_found", len(result.get("products", [])))
-            logger.info(f"Successfully extracted {product_count} products from image")
+            logger.info(f"Extracted {product_count} products from image")
             
             if product_count > 0:
-                logger.debug(f"Product details: {json.dumps(result['products'][:2], indent=2)}...")
+                logger.debug(f"First 2 products: {json.dumps(result['products'][:2], indent=2)}")
             
             return result
             
         except requests.RequestException as e:
-            logger.error(f"API request failed: {e}", exc_info=True)
-            return None
+            logger.error(f"API request failed: {e}")
+            raise  # Re-raise to let analyze_flyer_page handle retries
+            
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse API response as JSON: {e}", exc_info=True)
+            logger.error(f"Failed to parse API response as JSON: {e}")
             return None
+            
         except Exception as e:
             logger.error(f"Vision analysis failed: {e}", exc_info=True)
             return None
@@ -418,6 +575,10 @@ CRITICAL: Return ONLY the JSON object, nothing else. Do not add markdown or text
         
         for idx, image_path in enumerate(image_paths, 1):
             logger.info(f"[{idx}/{len(image_paths)}] Analyzing image: {image_path}")
+            
+            # Reset model index for each page
+            self.current_model_index = 0
+            self.model = self.MODELS[0]
             
             analysis = self.analyze_flyer_page(image_path)
             
