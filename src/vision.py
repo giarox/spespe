@@ -175,33 +175,72 @@ class VisionAnalyzer:
             image_data = self._encode_image_to_base64(image_path)
             
             # Create prompt for product extraction
-            prompt = """Analyze this supermarket flyer image and extract ALL visible products with their prices.
+            prompt = """You are analyzing a supermarket flyer image (typically Lidl). Extract ALL visible products with their prices.
 
-For each product found, provide:
-1. Product name (exact as shown)
-2. Original price (if visible)
-3. Current/discounted price (if different)
-4. Discount percentage (if visible)
-5. Any additional details (quantity, unit, etc.)
+IMPORTANT: A "product" is a distinct item with:
+- A product name/description (visible as text)
+- A current price (required - numbers like 0.89, 4.99, 119.00)
+- Product details (quantity, weight, units - may be optional)
 
-Return ONLY valid JSON in this format:
+PRICE FORMAT NOTES:
+- Prices shown as numbers: 0.89, 4.99, etc. (NO € symbol usually shown separately)
+- Decimal separator may be comma (0,89) or dot (0.89) - normalize both to dots
+- Old/original prices often smaller, struck through, or in different color
+- Discounts shown as "-30%", "-€2.00", etc. near the product
+
+PRODUCT LAYOUT CLUES (Lidl flyers):
+- Products arranged in grid/rows with product images
+- Price positioned below or beside product image
+- Quantity/weight info: "500g confezione", "4 x 170g", "650g"
+- Discount badges near price: "-31%", "-2.00€", "-30%"
+- Some products have unit pricing: "(1 kg = 1.78€)"
+- Valid date info may be present: "da giovedì 22/01"
+- Ignore: marketing text, logos, decorative elements, text NOT associated with a product
+
+CONFIDENCE THRESHOLD:
+- Only include products where you are confident (≥0.7) about:
+  * Product name is clearly readable
+  * Current price is clearly visible and numeric
+- Skip fuzzy/low-confidence extractions
+
+FOR EACH PRODUCT, extract:
+1. "name": Exact product name/description as shown (string)
+2. "current_price": Current/sale price as number string "X.XX" (required)
+3. "original_price": Original price if visible, else null (optional)
+4. "discount_percent": Discount as shown "-30%" or null if not visible (optional)
+5. "discount_amount": Discount as "€X.XX" if shown, else null (optional)
+6. "details": Weight, quantity, units "500g", "4x170g", "650g" (optional)
+7. "description": Any extra info like unit price "(1 kg = 1.78€)" or validity date (optional)
+8. "confidence": Your confidence 0.0-1.0 that extraction is accurate (required)
+
+EXAMPLES from typical Lidl flyer:
+- "Broccoli 500g", current_price: "0.89", discount_percent: "-31%", details: "500g"
+- "Filetto di petto di pollo a fette 650g", current_price: "4.99", discount_amount: "-€2.00", details: "650g"
+- "Realforno Frollini 700g", current_price: "1.39", discount_percent: "-30%", original_price: "1.99"
+- "Macchina da cucire Singer", current_price: "119.00", discount_percent: null, description: "MEGA AFFARE!"
+
+Return ONLY valid JSON (no extra text):
 {
     "products": [
         {
             "name": "Product Name",
-            "original_price": "10.99",
-            "current_price": "7.99",
-            "discount_percent": "27%",
-            "details": "250g",
+            "current_price": "X.XX",
+            "original_price": null,
+            "discount_percent": null,
+            "discount_amount": null,
+            "details": "500g",
+            "description": null,
             "confidence": 0.95
         }
     ],
     "total_products_found": 5,
-    "quality_notes": "Clear prices visible"
+    "quality_notes": "Clear, readable flyer with visible prices"
 }
 
-If no products are found or image is unclear, return:
-{"products": [], "total_products_found": 0, "quality_notes": "reason"}
+If no products found or image is unclear, return:
+{"products": [], "total_products_found": 0, "quality_notes": "No readable products visible"}
+
+CRITICAL: Return ONLY the JSON object, nothing else. Do not add markdown or text around the JSON.
 """
             
             logger.debug(f"Sending request to OpenRouter API (model: {self.model})")
