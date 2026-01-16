@@ -14,18 +14,43 @@ from src.logger import logger
 class CSVExporter:
     """Handles CSV export of product data."""
     
-    # CSV columns in order
+    # CSV columns matching Supabase products table schema
     FIELDNAMES = [
+        # Supermarket info
         "supermarket",
-        "flyer_date",
-        "page_number",
+        "retailer",
+        
+        # Product details  
         "product_name",
-        "original_price",
-        "discounted_price",
-        "discount_percentage",
-        "details",
-        "confidence_score",
-        "extraction_timestamp",
+        "brand",
+        "description",
+        
+        # Pricing
+        "current_price",
+        "old_price",
+        "discount_percent",
+        "saving_amount",
+        "saving_type",
+        
+        # Measurements
+        "weight_or_pack",
+        "price_per_unit",
+        
+        # Dates
+        "offer_start_date",
+        "offer_end_date",
+        "global_validity_start",
+        "global_validity_end",
+        
+        # Metadata
+        "confidence",
+        "notes",
+        "extraction_quality",
+        "extracted_at",
+        
+        # Legacy fields for reference
+        "page_number",
+        "flyer_date",
     ]
     
     def __init__(self, output_dir: str = None):
@@ -83,15 +108,22 @@ class CSVExporter:
                     row = {}
                     for field in self.FIELDNAMES:
                         value = product.get(field)
-                        # Format numeric values appropriately
-                        if value is not None and isinstance(value, float):
-                            row[field] = f"{value:.2f}" if "price" in field else str(value)
+                        
+                        # Handle different value types
+                        if value is None:
+                            row[field] = ""
+                        elif isinstance(value, list):
+                            # Convert lists (notes) to pipe-separated string
+                            row[field] = " | ".join(str(v) for v in value if v)
+                        elif isinstance(value, float):
+                            # Format floats with 2 decimals for prices
+                            row[field] = f"{value:.2f}" if "price" in field or "amount" in field else str(value)
                         else:
-                            row[field] = value or ""
+                            row[field] = str(value)
                     
                     writer.writerow(row)
                     
-                    if idx % 10 == 0:
+                    if idx % 50 == 0:
                         logger.debug(f"Wrote {idx}/{len(products)} rows")
             
             file_size = filepath.stat().st_size

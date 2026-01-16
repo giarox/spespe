@@ -62,12 +62,12 @@ class TestProductExtraction:
         record = extractor.extract_product_record(product_data, page_num=1)
         
         assert record["product_name"] == "Pasta Barilla 500g"
-        assert record["original_price"] == 2.50
-        assert record["discounted_price"] == 1.99
-        assert record["discount_percentage"] == 20.0
+        assert record["old_price"] == 2.50
+        assert record["current_price"] == 1.99
+        assert record["discount_percent"] == "-20.0%"
         assert record["supermarket"] == "Lidl"
         assert record["page_number"] == 1
-        assert record["confidence_score"] == 0.95
+        assert record["confidence"] == 0.95
     
     def test_validation_report(self):
         """Test product validation."""
@@ -113,14 +113,14 @@ class TestCSVExport:
                 {
                     "supermarket": "Lidl",
                     "product_name": "Pasta",
-                    "discounted_price": 1.99,
-                    "discount_percentage": 20.0,
-                    "confidence_score": 0.95,
+                    "current_price": 1.99,
+                    "old_price": 2.50,
+                    "discount_percent": "-20%",
+                    "confidence": 0.95,
                     "flyer_date": "2024-01-20",
                     "page_number": 1,
-                    "original_price": 2.50,
-                    "details": "500g",
-                    "extraction_timestamp": "2024-01-15T10:00:00"
+                    "weight_or_pack": "500g",
+                    "extracted_at": "2024-01-15T10:00:00"
                 }
             ]
             
@@ -144,14 +144,14 @@ class TestCSVExport:
                 {
                     "supermarket": "Lidl",
                     "product_name": "Parmigiano Reggiano Garantito",
-                    "discounted_price": 7.99,
-                    "discount_percentage": None,
-                    "confidence_score": 0.92,
+                    "current_price": 7.99,
+                    "old_price": None,
+                    "discount_percent": None,
+                    "confidence": 0.92,
                     "flyer_date": "2024-01-20",
                     "page_number": 1,
-                    "original_price": None,
-                    "details": "250g - Crema",
-                    "extraction_timestamp": "2024-01-15T10:00:00"
+                    "weight_or_pack": "250g - Crema",
+                    "extracted_at": "2024-01-15T10:00:00"
                 }
             ]
             

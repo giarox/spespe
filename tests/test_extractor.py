@@ -151,12 +151,12 @@ class TestProductRecordExtraction:
         record = extractor.extract_product_record(product_data, page_num=1)
         
         assert record["product_name"] == "Pasta Barilla 500g"
-        assert record["original_price"] == 2.50
-        assert record["discounted_price"] == 1.99
-        assert record["discount_percentage"] == 20.0
+        assert record["old_price"] == 2.50
+        assert record["current_price"] == 1.99
+        assert record["discount_percent"] == "-20.0%"
         assert record["supermarket"] == "Lidl"
         assert record["page_number"] == 1
-        assert record["confidence_score"] == 0.95
+        assert record["confidence"] == 0.95
     
     def test_extract_product_with_missing_fields(self):
         """Test extracting product with missing optional fields."""
@@ -170,7 +170,7 @@ class TestProductRecordExtraction:
         record = extractor.extract_product_record(product_data, page_num=2)
         
         assert record["product_name"] == "Simple Product"
-        assert record["discounted_price"] == 5.99
+        assert record["current_price"] == 5.99
         assert record["page_number"] == 2
     
     def test_extract_product_page_number(self):

@@ -103,32 +103,66 @@ class ProductExtractor:
             Structured product record
         """
         try:
-            original_price = self._parse_price(product_data.get("original_price"))
-            current_price = self._parse_price(product_data.get("current_price"))
-            discount_percent = self._parse_discount(product_data.get("discount_percent"))
+            # Parse prices (handle both old and new field names)
+            old_price = self._parse_price(
+                product_data.get("old_price") or product_data.get("original_price")
+            )
+            current_price = self._parse_price(
+                product_data.get("current_price") or product_data.get("discounted_price")
+            )
+            
+            # Get discount (from vision or calculate)
+            discount_percent_str = product_data.get("discount_percent") or product_data.get("discount")
+            discount_percent = self._parse_discount(discount_percent_str) if discount_percent_str else None
             
             # Calculate discount if not provided
-            if original_price and current_price and not discount_percent:
+            if old_price and current_price and not discount_percent:
                 discount_percent = round(
-                    ((original_price - current_price) / original_price) * 100,
+                    ((old_price - current_price) / old_price) * 100,
                     2
                 )
                 logger.debug(f"Calculated discount: {discount_percent}%")
             
+            # Build complete record with ALL fields from vision parser
             record = {
+                # Supermarket info
                 "supermarket": self.supermarket,
-                "flyer_date": flyer_date or datetime.now().strftime("%Y-%m-%d"),
-                "page_number": page_num,
+                "retailer": product_data.get("retailer"),
+                
+                # Product details
                 "product_name": product_data.get("name", "").strip(),
-                "original_price": original_price,
-                "discounted_price": current_price,
-                "discount_percentage": discount_percent,
-                "extraction_timestamp": datetime.now().isoformat(),
-                "confidence_score": product_data.get("confidence", 0.0),
-                "details": product_data.get("details", "")
+                "brand": product_data.get("brand"),
+                "description": product_data.get("description"),
+                
+                # Pricing
+                "current_price": current_price,
+                "old_price": old_price,
+                "discount_percent": f"-{discount_percent}%" if discount_percent else None,
+                "saving_amount": product_data.get("saving_amount"),
+                "saving_type": product_data.get("saving_type"),
+                
+                # Measurements
+                "weight_or_pack": product_data.get("weight_or_pack") or product_data.get("details"),
+                "price_per_unit": product_data.get("price_per_unit"),
+                
+                # Dates
+                "offer_start_date": product_data.get("offer_start_date"),
+                "offer_end_date": product_data.get("offer_end_date"),
+                "global_validity_start": product_data.get("global_validity", {}).get("start_date") if isinstance(product_data.get("global_validity"), dict) else None,
+                "global_validity_end": product_data.get("global_validity", {}).get("end_date") if isinstance(product_data.get("global_validity"), dict) else None,
+                
+                # Metadata
+                "confidence": product_data.get("confidence", 0.0),
+                "notes": product_data.get("notes"),
+                "extraction_quality": product_data.get("extraction_quality"),
+                "extracted_at": datetime.now().isoformat(),
+                
+                # Legacy fields for backward compatibility
+                "page_number": page_num,
+                "flyer_date": flyer_date or datetime.now().strftime("%Y-%m-%d"),
             }
             
-            logger.debug(f"Extracted product: {record['product_name']} - {record['discounted_price']}€")
+            logger.debug(f"Extracted product: {record['product_name']} - €{record['current_price']}")
             
             return record
             

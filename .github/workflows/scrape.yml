@@ -43,6 +43,16 @@ jobs:
           FLYER_URL: ${{ github.event.inputs.flyer_url || 'https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1' }}
         run: |
           python -m src.main
+      
+      - name: Import to Supabase
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          echo "📤 Importing products to Supabase database..."
+          pip install supabase psycopg2-binary python-dotenv
+          python scripts/import_to_supabase.py data/output/lidl_products_*.csv
 
       - name: Upload CSV artifacts
         if: always()
