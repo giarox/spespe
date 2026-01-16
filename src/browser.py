@@ -374,6 +374,9 @@ class FlyerBrowser:
         screenshots = []
         page_num = 1
         
+        # Track captured page hashes to detect loops
+        captured_hashes = set()
+        
         # Next button selectors (from Lidl HTML)
         NEXT_BUTTON_SELECTORS = [
             'button.button--navigation[aria-label="Pagina successiva"]',  # Specific Lidl
@@ -389,6 +392,20 @@ class FlyerBrowser:
             
             if screenshot_path:
                 screenshots.append(screenshot_path)
+                
+                # Check for duplicate pages by comparing page content hash
+                try:
+                    page_content = await self.page.content()
+                    content_hash = hash(page_content)
+                    
+                    if content_hash in captured_hashes:
+                        logger.warning(f"⚠️  Loop detected! Page {page_num} is a duplicate of a previous page")
+                        logger.info(f"✓ Captured {len(screenshots)} unique pages before loop detected")
+                        break
+                    
+                    captured_hashes.add(content_hash)
+                except Exception as e:
+                    logger.debug(f"Could not hash page content: {e}")
             else:
                 logger.warning(f"Failed to capture page {page_num}")
                 break
