@@ -86,3 +86,5 @@ id_ed25519*
 *.private
 *.oauth
 session-ses_43c3.md
+.vercel
+.env*.local
