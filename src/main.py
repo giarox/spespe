@@ -86,9 +86,9 @@ def main(
         validation_report = extractor.validate_products(products)
         
         logger.info(f"Validation Report:")
-        logger.info(f"  - Total products: {validation_report['total_products']}")
-        logger.info(f"  - With prices: {validation_report['products_with_prices']}")
-        logger.info(f"  - With discounts: {validation_report['products_with_discounts']}")
+        logger.info(f"  - Total products: {validation_report['total']}")
+        logger.info(f"  - With prices: {validation_report['with_prices']}")
+        logger.info(f"  - With discounts: {validation_report['with_discounts']}")
         logger.info(f"  - Avg confidence: {validation_report['avg_confidence']}")
         
         # Step 5: CSV Export - Save Results
@@ -104,9 +104,9 @@ def main(
         logger.info("=" * 80)
         logger.info(f"Flyer URL:           {flyer_url}")
         logger.info(f"Screenshots:         {len(screenshots)}")
-        logger.info(f"Products Extracted:  {validation_report['total_products']}")
-        logger.info(f"With Prices:         {validation_report['products_with_prices']}")
-        logger.info(f"With Discounts:      {validation_report['products_with_discounts']}")
+        logger.info(f"Products Extracted:  {validation_report['total']}")
+        logger.info(f"With Prices:         {validation_report['with_prices']}")
+        logger.info(f"With Discounts:      {validation_report['with_discounts']}")
         logger.info(f"Avg Confidence:      {validation_report['avg_confidence']}")
         logger.info(f"Output CSV:          {csv_path}")
         logger.info("=" * 80)

@@ -26,15 +26,28 @@ class ProductExtractor:
     def _parse_price(self, price_str: Optional[str]) -> Optional[float]:
         """
         Parse price string to float.
-        Handles various Italian price formats.
         
         Args:
-            price_str: Price string (e.g., "10,99€", "€10.99", "10.99")
+            price_str: Price string (e.g., "1,99", "€1.99", "1.99€") or float
             
         Returns:
-            Float price, or None if parsing fails
+            Float price or None if parsing fails
         """
         if not price_str:
+            return None
+        
+        # Handle if already a float (from vision.py parser)
+        if isinstance(price_str, (float, int)):
+            return float(price_str)
+        
+        try:
+            # Remove currency symbols and whitespace
+            cleaned = str(price_str).replace("€", "").replace(",", ".").strip()
+            price = float(cleaned)
+            logger.debug(f"Parsed price: {price_str} -> {price}")
+            return price
+        except (ValueError, AttributeError) as e:
+            logger.debug(f"Failed to parse price: {price_str} - {e}")
             return None
         
         try:
