@@ -99,6 +99,21 @@ def import_csv_to_database(csv_path):
         
         print(f"✅ Parsed {len(products_to_insert)} products from CSV")
         
+        # Deduplicate products based on unique key (product_name, supermarket, offer_start_date)
+        # Keep the product with highest confidence if duplicates exist
+        seen = {}
+        for product in products_to_insert:
+            key = (product['product_name'], product['supermarket'], product['offer_start_date'])
+            if key not in seen:
+                seen[key] = product
+            else:
+                # Keep the product with higher confidence
+                if product.get('confidence', 0) > seen[key].get('confidence', 0):
+                    seen[key] = product
+        
+        products_to_insert = list(seen.values())
+        print(f"✅ Deduplicated to {len(products_to_insert)} unique products")
+        
     except Exception as e:
         print(f"❌ Failed to read CSV: {e}")
         import traceback
