@@ -275,16 +275,14 @@ Only list products you can actually see in the image."""
                         "role": "user",
                         "content": [
                             {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": "image/png",
-                                    "data": image_data,
-                                }
-                            },
-                            {
                                 "type": "text",
                                 "text": prompt
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{image_data}"
+                                }
                             }
                         ]
                     }
