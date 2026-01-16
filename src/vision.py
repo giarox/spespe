@@ -135,16 +135,24 @@ class VisionAnalyzer:
         if the model is working correctly. If extraction finds many products but NOT
         Broccoli, it indicates hallucination (model making up products).
         
+        IMPORTANT: Returns True ONLY if:
+        - Products found AND Broccoli is present (confirmed real extraction)
+        
+        Returns False if:
+        - Hallucination detected (products found but NO Broccoli)
+        - 0 products found (image may not have uploaded correctly, should try next model)
+        
         Args:
             result: Analysis result from model
             
         Returns:
-            True if extraction looks valid (has Broccoli), False if hallucinating
+            True if Broccoli found (valid extraction), False otherwise
         """
         if not result or not result.get("products"):
-            # No products found - not hallucinating, just no data
-            logger.info("Validation: 0 products found (not hallucinating)")
-            return True
+            # No products found - could be image issue, return False to try next model
+            product_count = result.get('total_products_found', 0) if result else 0
+            logger.warning(f"Validation: {product_count} products found - trying next model (image may not have uploaded correctly)")
+            return False
         
         # Get all product names (lowercase for comparison)
         product_names = [p.get('name', '').lower() for p in result.get('products', [])]
@@ -159,13 +167,11 @@ class VisionAnalyzer:
         product_count = result.get('total_products_found', len(result.get('products', [])))
         
         if found_broccoli:
-            logger.info(f"✓ Validation PASSED: Found 'Broccoli' among {product_count} products")
+            logger.info(f"✓ Validation PASSED: Found 'Broccoli' among {product_count} products - EXTRACTION VALID")
             return True
-        elif product_count > 0:
-            logger.warning(f"✗ Validation FAILED: Found {product_count} products but NO 'Broccoli' - likely hallucinating")
-            return False
         else:
-            return True  # 0 products - not hallucinating
+            logger.warning(f"✗ Validation FAILED: Found {product_count} products but NO 'Broccoli' - likely hallucinating, trying next model")
+            return False
     
     def _verify_image_upload(self, image_path: str) -> Dict[str, Any]:
         """
@@ -200,7 +206,7 @@ class VisionAnalyzer:
 Can you confirm you can process and analyze images? Answer with just "YES" or "NO"."""
             
             response_a = self._call_api_for_verification(prompt_a, image_path)
-            method_a_pass = response_a and "yes" in response_a.lower()
+            method_a_pass = bool(response_a and "yes" in response_a.lower())
             verification_results["method_a"] = method_a_pass
             verification_results["details"]["method_a"] = response_a
             logger.info(f"    {'✓ PASS' if method_a_pass else '✗ FAIL'}: {response_a[:50] if response_a else 'No response'}")
@@ -225,7 +231,7 @@ Format your answer as: COLOR: [color] | FLYER_TYPE: [type] | SUPERMARKET: [name]
                 has_brand = 'lidl' in response_b_lower or 'aldi' in response_b_lower or any(
                     brand in response_b_lower for brand in ['carrefour', 'tesco', 'coop', 'penny', 'kaufland']
                 )
-                method_b_pass = has_color and has_flyer and has_brand
+                method_b_pass = bool(has_color and has_flyer and has_brand)
             
             verification_results["method_b"] = method_b_pass
             verification_results["details"]["method_b"] = response_b
@@ -237,13 +243,13 @@ Format your answer as: COLOR: [color] | FLYER_TYPE: [type] | SUPERMARKET: [name]
 Can you confirm you received a high-resolution/4K image? Answer with just "YES" or "NO"."""
             
             response_c = self._call_api_for_verification(prompt_c, image_path)
-            method_c_pass = response_c and "yes" in response_c.lower()
+            method_c_pass = bool(response_c and "yes" in response_c.lower())
             verification_results["method_c"] = method_c_pass
             verification_results["details"]["method_c"] = response_c
             logger.info(f"    {'✓ PASS' if method_c_pass else '✗ FAIL'}: {response_c[:50] if response_c else 'No response'}")
             
             # Calculate confidence score
-            confidence_count = sum([method_a_pass, method_b_pass, method_c_pass])
+            confidence_count = int(method_a_pass) + int(method_b_pass) + int(method_c_pass)
             verification_results["confidence"] = confidence_count
             
             logger.info(f"Image Upload Confidence: {confidence_count}/3")
@@ -321,12 +327,12 @@ Can you confirm you received a high-resolution/4K image? Answer with just "YES" 
         Analyze a flyer page image to extract product information.
         
         Fallback strategy (7 models):
-        - For each model: Try once
+        - For each model: Try once + verify image upload first
+        - Image Upload Confidence check (3 verification methods)
         - If API error: Retry once (2 total attempts)
         - If result found: Validate (check for Broccoli)
         - If Broccoli found: Return immediately (stop chain)
-        - If no Broccoli (hallucinating): Try next model
-        - If error or None: Try next model
+        - If 0 products OR hallucinating: Try next model
         - Maximum 14 attempts (2 per model × 7 models)
         
         Args:
@@ -345,14 +351,25 @@ Can you confirm you received a high-resolution/4K image? Answer with just "YES" 
             logger.info(f"\n[Model {model_attempt_index + 1}/{len(self.MODELS)}] {self.model}")
             logger.info(f"{'-'*80}")
             
-            # Try once, with one retry on API error
+            # STEP 1: Verify image upload (3 methods: hash, content, metadata)
+            logger.info("Step 1: Verifying image upload with 3 methods...")
+            image_verification = self._verify_image_upload(image_path)
+            confidence_score = image_verification.get("confidence", 0)
+            logger.info(f"Image Upload Confidence: {confidence_score}/3")
+            
+            if confidence_score == 0:
+                logger.warning("⚠️  Image upload confidence is 0/3 - skipping this model, trying next")
+                self.current_model_index += 1
+                continue
+            
+            # STEP 2: Try to extract products (with API retry on error)
             api_failures = 0
             result = None
             
             # Loop: try up to 2 times (initial try + 1 retry on API error)
             while api_failures < 2:
                 attempt_num = api_failures + 1
-                logger.info(f"Attempt {attempt_num}/2...")
+                logger.info(f"Step 2: Attempt {attempt_num}/2...")
                 
                 try:
                     # Call API
@@ -365,7 +382,7 @@ Can you confirm you received a high-resolution/4K image? Answer with just "YES" 
                         break  # Exit retry loop
                     else:
                         # None result (not API error, just model didn't return valid result)
-                        logger.warning("Model returned None (not API error)")
+                        logger.warning("Model returned None (malformed response)")
                         break  # Exit retry loop, move to next model
                         
                 except requests.exceptions.RequestException as e:
@@ -387,9 +404,9 @@ Can you confirm you received a high-resolution/4K image? Answer with just "YES" 
                 self.current_model_index += 1
                 continue
             
-            # Validate result (check for Broccoli)
+            # STEP 3: Validate result (check for Broccoli)
             product_count = result.get("total_products_found", len(result.get("products", [])))
-            logger.info(f"Validating extraction ({product_count} products)...")
+            logger.info(f"Step 3: Validating extraction ({product_count} products)...")
             
             is_valid = self._validate_extraction(result)
             
@@ -399,7 +416,7 @@ Can you confirm you received a high-resolution/4K image? Answer with just "YES" 
                 logger.info(f"{'='*80}")
                 return result
             else:
-                # Hallucination detected - try next model
+                # Invalid extraction (0 products or hallucination) - try next model
                 logger.warning("Extraction invalid - trying next model")
                 self.current_model_index += 1
                 continue
