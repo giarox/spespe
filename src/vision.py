@@ -1,11 +1,10 @@
 """
-AI Vision integration using OpenRouter vision models.
-Handles image analysis for product extraction with intelligent fallback strategy.
+AI Vision integration using Google Gemini 2.5 Flash via OpenRouter.
+Handles image analysis for product extraction from Italian supermarket flyers.
 """
 
 import base64
 import json
-import hashlib
 import re
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -15,22 +14,16 @@ from src.logger import logger
 
 
 class VisionAnalyzer:
-    """Handles image analysis using OpenRouter with intelligent fallback strategy."""
+    """
+    Vision analyzer using Google Gemini 2.5 Flash.
     
-    # Models in order of preference (tries sequentially until Broccoli found)
-    # Removed Nvidia model - too slow
-    MODELS = [
-        "allenai/molmo-2-8b:free",                          # 1. Primary model
-        "mistralai/mistral-small-3.1-24b-instruct:free",   # 2. Second fallback
-        "google/gemini-2.5-flash-lite",                    # 3. Google Gemini 2.5 Flash Lite
-        "x-ai/grok-4.1-fast",                              # 4. xAI Grok 4.1 Fast
-        "google/gemini-2.5-flash",                         # 5. Google Gemini 2.5 Flash
-        "google/gemini-3-flash-preview",                   # 6. Google Gemini 3 Flash Preview
-    ]
+    Selected based on comprehensive benchmarking showing best performance
+    for Italian flyer extraction across all metrics.
+    """
     
     def __init__(self, api_key: str):
         """
-        Initialize vision analyzer.
+        Initialize vision analyzer with Gemini 2.5 Flash.
         
         Args:
             api_key: OpenRouter API key
@@ -43,14 +36,11 @@ class VisionAnalyzer:
             raise ValueError("OpenRouter API key must start with 'sk-or-'")
         
         self.api_key = api_key
-        self.model = self.MODELS[0]
+        self.model = "google/gemini-2.5-flash"
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
-        self.current_model_index = 0
         
-        logger.info(f"VisionAnalyzer initialized with {len(self.MODELS)} models in fallback chain")
-        logger.info(f"Primary model: {self.model}")
-        logger.info(f"Fallback strategy: Direct extraction, no verification steps")
-        logger.info(f"Validation: Broccoli detection to confirm image received")
+        logger.info(f"VisionAnalyzer initialized with {self.model}")
+        logger.info("Single-model production setup (no fallbacks)")
     
     def _encode_image_to_base64(self, image_path: str) -> str:
         """
@@ -85,190 +75,36 @@ class VisionAnalyzer:
             logger.error(f"Failed to encode image: {e}", exc_info=True)
             raise
     
-    def _calculate_image_hash(self, image_path: str) -> str:
-        """
-        Calculate SHA256 hash of image file.
-        
-        Args:
-            image_path: Path to image file
-            
-        Returns:
-            SHA256 hash string
-        """
-        try:
-            sha256_hash = hashlib.sha256()
-            with open(image_path, "rb") as f:
-                for byte_block in iter(lambda: f.read(4096), b""):
-                    sha256_hash.update(byte_block)
-            return sha256_hash.hexdigest()
-        except Exception as e:
-            logger.warning(f"Failed to calculate image hash: {e}")
-            return "unknown"
-    
-    def _get_image_size_mb(self, image_path: str) -> float:
-        """Get image file size in MB."""
-        try:
-            size_bytes = Path(image_path).stat().st_size
-            return round(size_bytes / (1024 * 1024), 2)
-        except:
-            return 0.0
-    
-    def _switch_to_fallback_model(self) -> bool:
-        """
-        Switch to next fallback model.
-        
-        Returns:
-            True if fallback model available, False otherwise
-        """
-        if self.current_model_index < len(self.MODELS) - 1:
-            self.current_model_index += 1
-            self.model = self.MODELS[self.current_model_index]
-            logger.warning(f"Switching to model {self.current_model_index + 1}/{len(self.MODELS)}: {self.model}")
-            return True
-        return False
-    
-    def _validate_extraction(self, result: Optional[Dict[str, Any]]) -> bool:
-        """
-        Validate extraction quality by checking for known products.
-        
-        For Lidl flyers, "Broccoli" is a known product that should be extracted
-        if the model is working correctly. If extraction finds many products but NOT
-        Broccoli, it indicates hallucination (model making up products).
-        
-        IMPORTANT: Returns True ONLY if:
-        - Products found AND Broccoli is present (confirmed real extraction)
-        
-        Returns False if:
-        - Hallucination detected (products found but NO Broccoli)
-        - 0 products found (image may not have uploaded correctly, should try next model)
-        
-        Args:
-            result: Analysis result from model
-            
-        Returns:
-            True if Broccoli found (valid extraction), False otherwise
-        """
-        if not result or not result.get("products"):
-            # No products found - could be image issue, return False to try next model
-            product_count = result.get('total_products_found', 0) if result else 0
-            logger.warning(f"Validation: {product_count} products found - trying next model (image may not have uploaded correctly)")
-            return False
-        
-        # Get all product names (lowercase for comparison)
-        product_names = [p.get('name', '').lower() for p in result.get('products', [])]
-        
-        # Check for known Broccoli variants (this is our secret check!)
-        broccoli_keywords = ['broccoli', 'brocoli', 'broccolo']
-        found_broccoli = any(
-            any(keyword in name for keyword in broccoli_keywords)
-            for name in product_names
-        )
-        
-        product_count = result.get('total_products_found', len(result.get('products', [])))
-        
-        if found_broccoli:
-            logger.info(f"✓ Validation PASSED: Found 'Broccoli' among {product_count} products - EXTRACTION VALID")
-            return True
-        else:
-            logger.warning(f"✗ Validation FAILED: Found {product_count} products but NO 'Broccoli' - likely hallucinating, trying next model")
-            return False
-    
-
-    
-    def analyze_flyer_page(self, image_path: str, benchmark_mode: bool = False):
+    def analyze_flyer_page(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
         Analyze a flyer page image to extract product information.
         
-        Two modes:
-        1. Normal mode: Stop at first valid extraction (Broccoli found)
-        2. Benchmark mode: Run ALL models regardless of validation
-        
         Args:
             image_path: Path to flyer screenshot
-            benchmark_mode: If True, run all models and return list of (model_name, result)
             
         Returns:
-            - Normal mode: First valid result or None
-            - Benchmark mode: List of (model_name, result) tuples for ALL models
+            Dictionary with extracted product data, or None if analysis fails
         """
-        logger.info(f"\n{'='*80}")
-        if benchmark_mode:
-            logger.info(f"🔬 BENCHMARK MODE: Running ALL {len(self.MODELS)} models")
-        else:
-            logger.info(f"Starting product extraction with {len(self.MODELS)} models")
-        logger.info(f"{'='*80}")
+        logger.info(f"Analyzing flyer with {self.model}")
         
-        if benchmark_mode:
-            # BENCHMARK MODE: Run ALL models, collect all results
-            all_results = []
+        try:
+            result = self._analyze_image(image_path)
             
-            for model_idx, model_name in enumerate(self.MODELS):
-                self.model = model_name
-                logger.info(f"\n[Benchmark {model_idx + 1}/{len(self.MODELS)}] {model_name}")
-                logger.info(f"{'-'*80}")
-                
-                try:
-                    result = self._analyze_with_current_model(image_path)
-                    all_results.append((model_name, result))
-                    
-                    if result:
-                        product_count = result.get("total_products_found", 0)
-                        logger.info(f"✓ Extracted {product_count} products")
-                    else:
-                        logger.warning(f"✗ Extraction failed or returned None")
-                        
-                except Exception as e:
-                    logger.error(f"✗ Error: {str(e)[:100]}")
-                    all_results.append((model_name, None))
+            if result:
+                product_count = result.get("total_products_found", 0)
+                logger.info(f"✓ Extracted {product_count} products successfully")
+            else:
+                logger.warning("Analysis returned no results")
             
-            logger.info(f"\n{'='*80}")
-            logger.info(f"✅ Benchmark complete: Tested {len(all_results)} models")
-            logger.info(f"{'='*80}\n")
-            return all_results
-        
-        else:
-            # NORMAL MODE: Stop at first Broccoli
-            for model_idx in range(len(self.MODELS)):
-                self.model = self.MODELS[model_idx]
-                logger.info(f"\n[Model {model_idx + 1}/{len(self.MODELS)}] {self.model}")
-                logger.info(f"{'-'*80}")
-                
-                try:
-                    result = self._analyze_with_current_model(image_path)
-                    
-                    if result is None:
-                        logger.warning("Model returned invalid response - trying next model")
-                        continue
-                    
-                    product_count = result.get("total_products_found", 0)
-                    logger.info(f"Extracted {product_count} products from image")
-                    
-                    # Validate extraction (check for Broccoli)
-                    is_valid = self._validate_extraction(result)
-                    
-                    if is_valid:
-                        # Found Broccoli! Image was received correctly
-                        logger.info(f"✓✓ SUCCESS: Broccoli found - image received correctly, extraction valid")
-                        logger.info(f"{'='*80}")
-                        return result
-                    else:
-                        # Invalid extraction (0 products or no Broccoli)
-                        logger.warning(f"Validation failed - trying next model")
-                        continue
-                        
-                except Exception as e:
-                    logger.warning(f"Error with this model: {str(e)[:100]}")
-                    continue
+            return result
             
-            # All models exhausted
-            logger.error(f"{'='*80}")
-            logger.error("All models exhausted - no valid extraction found")
-            logger.error(f"{'='*80}")
+        except Exception as e:
+            logger.error(f"Analysis failed: {e}", exc_info=True)
             return None
     
-    def _analyze_with_current_model(self, image_path: str) -> Optional[Dict[str, Any]]:
+    def _analyze_image(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
-        Analyze with current model - extract products as plain text.
+        Analyze image with Gemini 2.5 Flash.
         
         Args:
             image_path: Path to flyer screenshot
@@ -280,7 +116,7 @@ class VisionAnalyzer:
             # Encode image
             image_data = self._encode_image_to_base64(image_path)
             
-            # Enhanced prompt with explicit image attachment mention
+            # Enhanced prompt optimized for Gemini
             prompt = """I am uploading an ITALIAN Lidl supermarket flyer screenshot as an image attachment to this message. This is a real image file that I am sending to you right now.
 
 IMPORTANT: 
@@ -342,17 +178,28 @@ Now extract from the ATTACHED IMAGE:"""
                         ]
                     }
                 ],
-                "max_tokens": 2000,  # Increased for detailed extraction
+                "max_tokens": 2000,
                 "temperature": 0.2,
             }
             
-            # Make API request
-            response = requests.post(self.base_url, headers=headers, json=payload, timeout=60)
+            # Make API request with single retry on error
+            response = None
+            for attempt in range(2):
+                try:
+                    response = requests.post(self.base_url, headers=headers, json=payload, timeout=60)
+                    if response.status_code == 200:
+                        break
+                    else:
+                        logger.warning(f"Attempt {attempt + 1}/2 failed with status {response.status_code}")
+                        if attempt == 0:
+                            logger.info("Retrying once...")
+                except requests.RequestException as e:
+                    logger.warning(f"Attempt {attempt + 1}/2 failed: {e}")
+                    if attempt == 0:
+                        logger.info("Retrying once...")
             
-            logger.debug(f"API response status: {response.status_code}")
-            
-            if response.status_code != 200:
-                logger.error(f"API error {response.status_code}: {response.text[:200]}")
+            if not response or response.status_code != 200:
+                logger.error(f"API error after retries: {response.text[:200] if response else 'No response'}")
                 return None
             
             # Parse response
@@ -365,7 +212,7 @@ Now extract from the ATTACHED IMAGE:"""
             content = response_data["choices"][0]["message"]["content"]
             logger.debug(f"Model response length: {len(content)} characters")
             
-            # Log full model response for debugging
+            # Log full model response
             logger.info(f"\n{'='*80}")
             logger.info(f"RESPONSE FROM {self.model}:")
             logger.info(f"{'='*80}")
@@ -373,38 +220,34 @@ Now extract from the ATTACHED IMAGE:"""
             logger.info(f"{'='*80}\n")
             
             # Parse plain text response
-            result = self._parse_plain_text_response(content)
+            result = self._parse_response(content)
             
             if result is None:
                 logger.error("Could not parse response")
                 return None
             
             product_count = result.get("total_products_found", 0)
-            logger.info(f"Parsed {product_count} products from plain text response")
+            logger.info(f"Parsed {product_count} products from response")
             
             return result
-            
-        except requests.RequestException as e:
-            logger.error(f"API request failed: {e}")
-            return None
             
         except Exception as e:
             logger.error(f"Vision analysis failed: {e}", exc_info=True)
             return None
     
-    def _parse_plain_text_response(self, text: str) -> Optional[Dict[str, Any]]:
+    def _parse_response(self, text: str) -> Optional[Dict[str, Any]]:
         """
-        Parse enhanced plain text response into full structured format.
+        Parse plain text response into structured format.
         
         Expected format:
         Line 1: Lidl | EUR | 19/01 | 25/01
-        Line 2+: Brand | ProductName | Description | CurrentPrice | OldPrice | Discount | ... | Notes
+        Line 2+: Brand | ProductName | Description | CurrentPrice | ... | Notes
         
         Args:
             text: Plain text response from model
             
         Returns:
-            Dictionary matching target schema with all fields
+            Dictionary with structured product data
         """
         try:
             lines = [l.strip() for l in text.split('\n') if l.strip()]
@@ -442,7 +285,7 @@ Now extract from the ATTACHED IMAGE:"""
             }
             
         except Exception as e:
-            logger.error(f"Failed to parse enhanced response: {e}", exc_info=True)
+            logger.error(f"Failed to parse response: {e}", exc_info=True)
             return None
     
     def _parse_global_line(self, line: str) -> Dict:
@@ -463,7 +306,7 @@ Now extract from the ATTACHED IMAGE:"""
         """Parse product: Brand | ProductName | Description | CurrentPrice | OldPrice | Discount | ... | Notes"""
         parts = [p.strip() for p in line.split('|')]
         
-        if len(parts) < 4:  # Minimum: name + price
+        if len(parts) < 4:
             return None
         
         def parse_field(value: str) -> Optional[str]:
@@ -473,7 +316,7 @@ Now extract from the ATTACHED IMAGE:"""
             return value.strip()
         
         def parse_price(value: str) -> Optional[float]:
-            """Extract numeric price from various formats"""
+            """Extract numeric price"""
             if not value or value.lower() == 'null':
                 return None
             # Handle: "1.39", "1,39", "1.39 €", "€ 1.39"
@@ -486,13 +329,6 @@ Now extract from the ATTACHED IMAGE:"""
                 return float(numeric.group(1))
             return None
         
-        def calculate_discount_percent(old: float, new: float) -> Optional[str]:
-            """Calculate discount % if not provided"""
-            if old and new and old > new:
-                pct = round(((old - new) / old) * 100)
-                return f"-{pct}%"
-            return None
-        
         # Extract fields with safe indexing
         brand = parse_field(parts[0]) if len(parts) > 0 else None
         name = parse_field(parts[1]) if len(parts) > 1 else None
@@ -502,10 +338,11 @@ Now extract from the ATTACHED IMAGE:"""
         discount = parse_field(parts[5]) if len(parts) > 5 else None
         
         # Auto-calculate discount if missing
-        if not discount and old_price and current_price:
-            discount = calculate_discount_percent(old_price, current_price)
+        if not discount and old_price and current_price and old_price > current_price:
+            pct = round(((old_price - current_price) / old_price) * 100)
+            discount = f"-{pct}%"
         
-        # Calculate saving amount and type
+        # Calculate saving amount
         saving_amount = None
         saving_type = None
         if old_price and current_price and old_price > current_price:
@@ -518,7 +355,7 @@ Now extract from the ATTACHED IMAGE:"""
         offer_start = parse_field(parts[8]) if len(parts) > 8 else None
         offer_end = parse_field(parts[9]) if len(parts) > 9 else None
         
-        # Collect notes (everything after position 10)
+        # Collect notes
         notes = []
         if len(parts) > 10:
             for note in parts[10:]:
@@ -526,7 +363,7 @@ Now extract from the ATTACHED IMAGE:"""
                 if cleaned:
                     notes.append(cleaned)
         
-        # Calculate field completeness for confidence
+        # Calculate confidence
         fields_expected = 11
         fields_filled = sum([
             1 if brand else 0,
@@ -598,10 +435,6 @@ Now extract from the ATTACHED IMAGE:"""
         for idx, image_path in enumerate(image_paths, 1):
             logger.info(f"[{idx}/{len(image_paths)}] Analyzing image: {image_path}")
             
-            # Reset model index for each page
-            self.current_model_index = 0
-            self.model = self.MODELS[0]
-            
             analysis = self.analyze_flyer_page(image_path)
             
             if analysis:
@@ -623,30 +456,21 @@ Now extract from the ATTACHED IMAGE:"""
         return results
 
 
-def analyze_screenshots(api_key: str, screenshot_paths: List[str], benchmark_mode: bool = False):
+def analyze_screenshots(api_key: str, screenshot_paths: List[str]) -> Dict[str, Any]:
     """
     Convenience function to analyze multiple screenshots.
     
     Args:
         api_key: OpenRouter API key
         screenshot_paths: List of screenshot file paths
-        benchmark_mode: If True, run all models on first image only
         
     Returns:
-        - Normal mode: Analysis results dictionary
-        - Benchmark mode: List of (model_name, result) tuples
+        Analysis results dictionary
     """
     logger.info("Initializing vision analyzer")
     analyzer = VisionAnalyzer(api_key)
     
-    if benchmark_mode:
-        # Benchmark mode: only analyze first image with all models
-        if screenshot_paths:
-            logger.info(f"Benchmark mode: analyzing first image with all models")
-            return analyzer.analyze_flyer_page(screenshot_paths[0], benchmark_mode=True)
-        return []
-    else:
-        # Normal mode: analyze all images
-        logger.info(f"Analyzing {len(screenshot_paths)} screenshots")
-        results = analyzer.analyze_multiple_images(screenshot_paths)
-        return results
+    logger.info(f"Analyzing {len(screenshot_paths)} screenshots with Gemini 2.5 Flash")
+    results = analyzer.analyze_multiple_images(screenshot_paths)
+    
+    return results

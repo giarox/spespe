@@ -171,7 +171,7 @@ class TestVisionAnalyzerIntegration:
         from src.vision import VisionAnalyzer
         
         analyzer = VisionAnalyzer("sk-or-v1-test-key-valid-format")
-        assert analyzer.model == "allenai/molmo-2-8b:free"
+        assert analyzer.model == "google/gemini-2.5-flash"
         assert analyzer.base_url == "https://openrouter.ai/api/v1/chat/completions"
     
     def test_invalid_api_key(self):
