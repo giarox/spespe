@@ -1,0 +1,109 @@
+{
+  "retailer": "Lidl",
+  "currency": "EUR",
+  "global_validity": {
+    "start_date": "19/01",
+    "end_date": "25/01",
+    "confidence": 0.98
+  },
+  "products": [
+    {
+      "brand": null,
+      "name": "Broccoli",
+      "description": null,
+      "current_price": 0.89,
+      "old_price": 1.29,
+      "discount": "-31%",
+      "saving_amount": null,
+      "saving_type": null,
+      "weight_or_pack": "500 g confezione",
+      "price_per_unit": "1 kg = 1,78 €",
+      "offer_start_date": "19/01",
+      "offer_end_date": "25/01",
+      "confidence": 0.95,
+      "notes": ["Presente claim 'Coltivato in Italia' vicino al prodotto."]
+    },
+    {
+      "brand": null,
+      "name": "Filetto di petto di pollo a fette",
+      "description": null,
+      "current_price": 4.99,
+      "old_price": 6.99,
+      "discount": "-28%",
+      "saving_amount": 2.0,
+      "saving_type": "absolute",
+      "weight_or_pack": "650 g confezione",
+      "price_per_unit": "1 kg = 7,68 €",
+      "offer_start_date": "19/01",
+      "offer_end_date": "25/01",
+      "confidence": 0.82,
+      "notes": [
+        "Presente claim 'Allevato in Italia' vicino al prodotto.",
+        "La percentuale '-28%' è meno leggibile rispetto agli altri badge: trattala come campo a confidenza più bassa."
+      ]
+    },
+    {
+      "brand": "Dal Salumiere",
+      "name": "Porchetta affettata",
+      "description": null,
+      "current_price": 1.59,
+      "old_price": 2.39,
+      "discount": "-33%",
+      "saving_amount": null,
+      "saving_type": null,
+      "weight_or_pack": "120 g confezione",
+      "price_per_unit": "1 kg = 13,25 €",
+      "offer_start_date": "19/01",
+      "offer_end_date": "25/01",
+      "confidence": 0.93,
+      "notes": ["Sul pack si legge anche 'Porchetta arrosto' / 'Cotta al forno' (testo di confezione)."]
+    },
+    {
+      "brand": "Realforno",
+      "name": "Frollini fior di grano",
+      "description": null,
+      "current_price": 1.39,
+      "old_price": 1.99,
+      "discount": "-30%",
+      "saving_amount": null,
+      "saving_type": null,
+      "weight_or_pack": "700 g confezione",
+      "price_per_unit": "1 kg = 1,99 €",
+      "offer_start_date": "19/01",
+      "offer_end_date": "25/01",
+      "confidence": 0.92
+    },
+    {
+      "brand": "ERIDANOUS",
+      "name": "Chiocciole di pasta fillo",
+      "description": "Con ripieno ai porri e formaggio",
+      "current_price": 2.99,
+      "old_price": null,
+      "discount": null,
+      "saving_amount": null,
+      "saving_type": null,
+      "weight_or_pack": "4 x 170 g confezione",
+      "price_per_unit": "1 kg = 4,40 €",
+      "offer_start_date": "22/01",
+      "offer_end_date": "25/01",
+      "confidence": 0.9,
+      "notes": ["Blocco con data esplicita: 'da giovedì 22/01'."]
+    },
+    {
+      "brand": "SINGER",
+      "name": "Macchina da cucire",
+      "description": null,
+      "current_price": 119.0,
+      "old_price": null,
+      "discount": null,
+      "saving_amount": null,
+      "saving_type": null,
+      "weight_or_pack": null,
+      "price_per_unit": null,
+      "offer_start_date": "22/01",
+      "offer_end_date": "25/01",
+      "confidence": 0.88,
+      "notes": ["Blocco con data esplicita: 'da giovedì 22/01'. Presente badge marketing 'MEGA AFFARE!' (ignorato come sconto)."]
+    }
+  ]
+}

@@ -175,66 +175,96 @@ class VisionAnalyzer:
     
 
     
-    def analyze_flyer_page(self, image_path: str) -> Optional[Dict[str, Any]]:
+    def analyze_flyer_page(self, image_path: str, benchmark_mode: bool = False):
         """
         Analyze a flyer page image to extract product information.
         
-        Simplified fallback strategy (6 models):
-        - For each model: Send ONE simple request
-        - Extract plain text list of products
-        - Parse and validate (check for Broccoli)
-        - If Broccoli found: Return immediately (stop chain)
-        - If not found or error: Try next model
+        Two modes:
+        1. Normal mode: Stop at first valid extraction (Broccoli found)
+        2. Benchmark mode: Run ALL models regardless of validation
         
         Args:
             image_path: Path to flyer screenshot
+            benchmark_mode: If True, run all models and return list of (model_name, result)
             
         Returns:
-            Dictionary with extracted product data, or None if all models fail
+            - Normal mode: First valid result or None
+            - Benchmark mode: List of (model_name, result) tuples for ALL models
         """
         logger.info(f"\n{'='*80}")
-        logger.info(f"Starting product extraction with {len(self.MODELS)} models")
+        if benchmark_mode:
+            logger.info(f"🔬 BENCHMARK MODE: Running ALL {len(self.MODELS)} models")
+        else:
+            logger.info(f"Starting product extraction with {len(self.MODELS)} models")
         logger.info(f"{'='*80}")
         
-        # Try each model in sequence
-        for model_attempt_index in range(len(self.MODELS)):
-            self.model = self.MODELS[model_attempt_index]
-            logger.info(f"\n[Model {model_attempt_index + 1}/{len(self.MODELS)}] {self.model}")
-            logger.info(f"{'-'*80}")
+        if benchmark_mode:
+            # BENCHMARK MODE: Run ALL models, collect all results
+            all_results = []
             
-            try:
-                # Extract products with current model
-                result = self._analyze_with_current_model(image_path)
+            for model_idx, model_name in enumerate(self.MODELS):
+                self.model = model_name
+                logger.info(f"\n[Benchmark {model_idx + 1}/{len(self.MODELS)}] {model_name}")
+                logger.info(f"{'-'*80}")
                 
-                if result is None:
-                    logger.warning("Model returned invalid response - trying next model")
-                    continue
-                
-                product_count = result.get("total_products_found", 0)
-                logger.info(f"Extracted {product_count} products from image")
-                
-                # Validate extraction (check for Broccoli)
-                is_valid = self._validate_extraction(result)
-                
-                if is_valid:
-                    # Found Broccoli! Image was received correctly
-                    logger.info(f"✓✓ SUCCESS: Broccoli found - image received correctly, extraction valid")
-                    logger.info(f"{'='*80}")
-                    return result
-                else:
-                    # Invalid extraction (0 products or no Broccoli)
-                    logger.warning(f"Validation failed - trying next model")
-                    continue
+                try:
+                    result = self._analyze_with_current_model(image_path)
+                    all_results.append((model_name, result))
                     
-            except Exception as e:
-                logger.warning(f"Error with this model: {str(e)[:100]}")
-                continue
+                    if result:
+                        product_count = result.get("total_products_found", 0)
+                        logger.info(f"✓ Extracted {product_count} products")
+                    else:
+                        logger.warning(f"✗ Extraction failed or returned None")
+                        
+                except Exception as e:
+                    logger.error(f"✗ Error: {str(e)[:100]}")
+                    all_results.append((model_name, None))
+            
+            logger.info(f"\n{'='*80}")
+            logger.info(f"✅ Benchmark complete: Tested {len(all_results)} models")
+            logger.info(f"{'='*80}\n")
+            return all_results
         
-        # All models exhausted
-        logger.error(f"{'='*80}")
-        logger.error("All models exhausted - no valid extraction found")
-        logger.error(f"{'='*80}")
-        return None
+        else:
+            # NORMAL MODE: Stop at first Broccoli
+            for model_idx in range(len(self.MODELS)):
+                self.model = self.MODELS[model_idx]
+                logger.info(f"\n[Model {model_idx + 1}/{len(self.MODELS)}] {self.model}")
+                logger.info(f"{'-'*80}")
+                
+                try:
+                    result = self._analyze_with_current_model(image_path)
+                    
+                    if result is None:
+                        logger.warning("Model returned invalid response - trying next model")
+                        continue
+                    
+                    product_count = result.get("total_products_found", 0)
+                    logger.info(f"Extracted {product_count} products from image")
+                    
+                    # Validate extraction (check for Broccoli)
+                    is_valid = self._validate_extraction(result)
+                    
+                    if is_valid:
+                        # Found Broccoli! Image was received correctly
+                        logger.info(f"✓✓ SUCCESS: Broccoli found - image received correctly, extraction valid")
+                        logger.info(f"{'='*80}")
+                        return result
+                    else:
+                        # Invalid extraction (0 products or no Broccoli)
+                        logger.warning(f"Validation failed - trying next model")
+                        continue
+                        
+                except Exception as e:
+                    logger.warning(f"Error with this model: {str(e)[:100]}")
+                    continue
+            
+            # All models exhausted
+            logger.error(f"{'='*80}")
+            logger.error("All models exhausted - no valid extraction found")
+            logger.error(f"{'='*80}")
+            return None
     
     def _analyze_with_current_model(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
@@ -250,13 +280,38 @@ class VisionAnalyzer:
             # Encode image
             image_data = self._encode_image_to_base64(image_path)
             
-            # Simple, direct prompt
-            prompt = """CONFIRM: I can see the flyer screenshot and analyze it.
-Here are the products with their information from this supermarket flyer:
+            # Enhanced prompt with explicit image attachment mention
+            prompt = """I am uploading an ITALIAN Lidl supermarket flyer screenshot as an image attachment to this message. This is a real image file that I am sending to you right now.
 
-LIST EACH PRODUCT ON A NEW LINE with format: ProductName | Price | Details/Discount
+IMPORTANT: 
+- This flyer is in ITALIAN language. Do NOT translate. Preserve all Italian text exactly as written.
+- DO NOT make up or hallucinate a flyer. Extract ONLY from the actual image I attached.
+- The image is attached to this message - analyze it directly.
 
-Only list products you can actually see in the image."""
+Extract ALL product information from this attached flyer image.
+
+FIRST LINE - GLOBAL INFO:
+Retailer | Currency | ValidFrom | ValidTo
+
+THEN LIST ALL PRODUCTS (one per line):
+Brand | ProductName | Description | CurrentPrice | OldPrice | Discount | WeightPack | PricePerUnit | OfferStart | OfferEnd | Notes
+
+RULES:
+- Keep ALL text in Italian exactly as shown (e.g., "Coltivato in Italia", "confezione")
+- Write "null" if field is missing or not visible
+- Prices: numbers only (1.39, 0.89)
+- Discount: with % sign (-31%)
+- Dates: extract exactly as shown (e.g., "19/01", "da giovedì 22/01")
+- Notes: any claims, badges, marketing text near product
+- Separate fields with " | " (space-pipe-space)
+- Extract EVERYTHING you can see, even if partially visible
+
+EXAMPLE OUTPUT:
+Lidl | EUR | 19/01 | 25/01
+null | Broccoli | null | 0.89 | 1.29 | -31% | 500 g confezione | 1 kg = 1,78 € | 19/01 | 25/01 | Coltivato in Italia
+Dal Salumiere | Porchetta affettata | null | 1.59 | 2.39 | -33% | 120 g confezione | 1 kg = 13,25 € | 19/01 | 25/01 | Porchetta arrosto
+
+Now extract from the ATTACHED IMAGE:"""
             
             logger.debug(f"Sending request to OpenRouter API")
             logger.debug(f"Prompt length: {len(prompt)} characters")
@@ -287,7 +342,7 @@ Only list products you can actually see in the image."""
                         ]
                     }
                 ],
-                "max_tokens": 1000,
+                "max_tokens": 2000,  # Increased for detailed extraction
                 "temperature": 0.2,
             }
             
@@ -339,69 +394,186 @@ Only list products you can actually see in the image."""
     
     def _parse_plain_text_response(self, text: str) -> Optional[Dict[str, Any]]:
         """
-        Parse plain text response from model into structured format.
+        Parse enhanced plain text response into full structured format.
         
         Expected format:
-        CONFIRM: I can see the flyer...
-        ProductName | Price | Details/Discount
-        ProductName | Price | Details/Discount
+        Line 1: Lidl | EUR | 19/01 | 25/01
+        Line 2+: Brand | ProductName | Description | CurrentPrice | OldPrice | Discount | ... | Notes
         
         Args:
             text: Plain text response from model
             
         Returns:
-            Dictionary with structured product data, or None if parsing fails
+            Dictionary matching target schema with all fields
         """
         try:
-            products = []
-            lines = text.split('\n')
+            lines = [l.strip() for l in text.split('\n') if l.strip()]
             
+            # Find data lines (skip confirmation/instruction text)
+            data_lines = []
             for line in lines:
-                line = line.strip()
-                
-                # Skip empty lines and confirmation lines
-                if not line or 'confirm' in line.lower() or 'here are' in line.lower():
+                # Skip common non-data patterns
+                if any(skip in line.lower() for skip in ['confirm', 'here are', 'extract', 'attached', 'image', 'now extract', 'important']):
                     continue
-                
-                # Skip lines that don't contain pipes
-                if '|' not in line:
-                    continue
-                
-                # Parse line: ProductName | Price | Details
-                parts = [p.strip() for p in line.split('|')]
-                
-                if len(parts) < 2:
-                    continue
-                
-                name = parts[0]
-                price = parts[1]
-                details = parts[2] if len(parts) > 2 else None
-                
-                # Try to extract numeric price
-                price_match = re.search(r'[\d.,]+', price)
-                if not price_match:
-                    continue  # Skip lines without valid price
-                
-                products.append({
-                    "name": name,
-                    "current_price": price,
-                    "details": details,
-                    "confidence": 0.8
-                })
+                if '|' in line:
+                    data_lines.append(line)
             
-            if not products:
-                logger.warning("No products parsed from response")
-                return {"products": [], "total_products_found": 0, "quality_notes": "Could not parse any products"}
+            if not data_lines:
+                logger.warning("No pipe-separated data found in response")
+                return {"products": [], "total_products_found": 0, "quality_notes": "No data extracted"}
+            
+            # Parse global info (first line)
+            global_info = self._parse_global_line(data_lines[0] if data_lines else "")
+            
+            # Parse products (remaining lines)
+            products = []
+            for line in data_lines[1:] if len(data_lines) > 1 else data_lines:
+                product = self._parse_product_line(line)
+                if product:
+                    products.append(product)
             
             return {
+                "retailer": global_info.get("retailer"),
+                "currency": global_info.get("currency"),
+                "global_validity": global_info.get("validity"),
                 "products": products,
                 "total_products_found": len(products),
-                "quality_notes": f"Extracted {len(products)} products from plain text"
+                "extraction_quality": self._assess_quality(products)
             }
             
         except Exception as e:
-            logger.error(f"Failed to parse plain text response: {e}")
+            logger.error(f"Failed to parse enhanced response: {e}", exc_info=True)
             return None
+    
+    def _parse_global_line(self, line: str) -> Dict:
+        """Parse global info: Lidl | EUR | 19/01 | 25/01"""
+        parts = [p.strip() for p in line.split('|')]
+        
+        return {
+            "retailer": parts[0] if len(parts) > 0 and parts[0].lower() != 'null' else None,
+            "currency": parts[1] if len(parts) > 1 and parts[1].lower() != 'null' else None,
+            "validity": {
+                "start_date": parts[2] if len(parts) > 2 and parts[2].lower() != 'null' else None,
+                "end_date": parts[3] if len(parts) > 3 and parts[3].lower() != 'null' else None,
+                "confidence": 0.9 if len(parts) >= 4 else 0.6
+            }
+        }
+    
+    def _parse_product_line(self, line: str) -> Optional[Dict]:
+        """Parse product: Brand | ProductName | Description | CurrentPrice | OldPrice | Discount | ... | Notes"""
+        parts = [p.strip() for p in line.split('|')]
+        
+        if len(parts) < 4:  # Minimum: name + price
+            return None
+        
+        def parse_field(value: str) -> Optional[str]:
+            """Convert 'null' to None, strip whitespace"""
+            if not value or value.lower() == 'null':
+                return None
+            return value.strip()
+        
+        def parse_price(value: str) -> Optional[float]:
+            """Extract numeric price from various formats"""
+            if not value or value.lower() == 'null':
+                return None
+            # Handle: "1.39", "1,39", "1.39 €", "€ 1.39"
+            numeric = re.search(r'(\d+)[.,](\d+)', value)
+            if numeric:
+                return float(f"{numeric.group(1)}.{numeric.group(2)}")
+            # Try integer prices
+            numeric = re.search(r'(\d+)', value)
+            if numeric:
+                return float(numeric.group(1))
+            return None
+        
+        def calculate_discount_percent(old: float, new: float) -> Optional[str]:
+            """Calculate discount % if not provided"""
+            if old and new and old > new:
+                pct = round(((old - new) / old) * 100)
+                return f"-{pct}%"
+            return None
+        
+        # Extract fields with safe indexing
+        brand = parse_field(parts[0]) if len(parts) > 0 else None
+        name = parse_field(parts[1]) if len(parts) > 1 else None
+        description = parse_field(parts[2]) if len(parts) > 2 else None
+        current_price = parse_price(parts[3]) if len(parts) > 3 else None
+        old_price = parse_price(parts[4]) if len(parts) > 4 else None
+        discount = parse_field(parts[5]) if len(parts) > 5 else None
+        
+        # Auto-calculate discount if missing
+        if not discount and old_price and current_price:
+            discount = calculate_discount_percent(old_price, current_price)
+        
+        # Calculate saving amount and type
+        saving_amount = None
+        saving_type = None
+        if old_price and current_price and old_price > current_price:
+            saving_amount = round(old_price - current_price, 2)
+            saving_type = "absolute"
+        
+        # Parse remaining fields
+        weight = parse_field(parts[6]) if len(parts) > 6 else None
+        price_per_unit = parse_field(parts[7]) if len(parts) > 7 else None
+        offer_start = parse_field(parts[8]) if len(parts) > 8 else None
+        offer_end = parse_field(parts[9]) if len(parts) > 9 else None
+        
+        # Collect notes (everything after position 10)
+        notes = []
+        if len(parts) > 10:
+            for note in parts[10:]:
+                cleaned = parse_field(note)
+                if cleaned:
+                    notes.append(cleaned)
+        
+        # Calculate field completeness for confidence
+        fields_expected = 11
+        fields_filled = sum([
+            1 if brand else 0,
+            1 if name else 0,
+            1 if description else 0,
+            1 if current_price else 0,
+            1 if old_price else 0,
+            1 if discount else 0,
+            1 if weight else 0,
+            1 if price_per_unit else 0,
+            1 if offer_start else 0,
+            1 if offer_end else 0,
+            1 if notes else 0
+        ])
+        
+        confidence = round(0.6 + (0.35 * fields_filled / fields_expected), 2)
+        
+        return {
+            "brand": brand,
+            "name": name,
+            "description": description,
+            "current_price": current_price,
+            "old_price": old_price,
+            "discount": discount,
+            "saving_amount": saving_amount,
+            "saving_type": saving_type,
+            "weight_or_pack": weight,
+            "price_per_unit": price_per_unit,
+            "offer_start_date": offer_start,
+            "offer_end_date": offer_end,
+            "confidence": confidence,
+            "notes": notes if notes else None
+        }
+    
+    def _assess_quality(self, products: List[Dict]) -> str:
+        """Assess overall extraction quality"""
+        if not products:
+            return "No products extracted"
+        
+        avg_confidence = sum(p.get('confidence', 0) for p in products) / len(products)
+        
+        if avg_confidence >= 0.85:
+            return "High quality - most fields complete"
+        elif avg_confidence >= 0.70:
+            return "Medium quality - core fields present"
+        else:
+            return "Low quality - many missing fields"
     
     def analyze_multiple_images(self, image_paths: List[str]) -> Dict[str, Any]:
         """
@@ -451,21 +623,30 @@ Only list products you can actually see in the image."""
         return results
 
 
-def analyze_screenshots(api_key: str, screenshot_paths: List[str]) -> Dict[str, Any]:
+def analyze_screenshots(api_key: str, screenshot_paths: List[str], benchmark_mode: bool = False):
     """
     Convenience function to analyze multiple screenshots.
     
     Args:
         api_key: OpenRouter API key
         screenshot_paths: List of screenshot file paths
+        benchmark_mode: If True, run all models on first image only
         
     Returns:
-        Analysis results dictionary
+        - Normal mode: Analysis results dictionary
+        - Benchmark mode: List of (model_name, result) tuples
     """
     logger.info("Initializing vision analyzer")
     analyzer = VisionAnalyzer(api_key)
     
-    logger.info(f"Analyzing {len(screenshot_paths)} screenshots")
-    results = analyzer.analyze_multiple_images(screenshot_paths)
-    
-    return results
+    if benchmark_mode:
+        # Benchmark mode: only analyze first image with all models
+        if screenshot_paths:
+            logger.info(f"Benchmark mode: analyzing first image with all models")
+            return analyzer.analyze_flyer_page(screenshot_paths[0], benchmark_mode=True)
+        return []
+    else:
+        # Normal mode: analyze all images
+        logger.info(f"Analyzing {len(screenshot_paths)} screenshots")
+        results = analyzer.analyze_multiple_images(screenshot_paths)
+        return results
