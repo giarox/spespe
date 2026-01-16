@@ -131,15 +131,80 @@ class FlyerBrowser:
     
     async def get_flyer_page_count(self) -> int:
         """
-        Detect number of pages in the flyer.
-        Attempts multiple selectors for different flyer viewers.
+        Detect the total number of pages in the flyer using multiple methods.
         
         Returns:
-            Number of pages, or 1 if detection fails
+            Number of pages, or -1 if detection fails (signals to use button clicking method)
         """
         if not self.page:
             logger.error("Page not initialized")
-            return 1
+            return -1
+        
+        try:
+            # Get all page text for pattern matching
+            page_text = await self.page.inner_text('body')
+            
+            # Method 1: Look for Italian pagination patterns
+            import re
+            patterns = [
+                r'Pagina\s+\d+\s+di\s+(\d+)',  # "Pagina 1 di 8"
+                r'\d+\s+di\s+(\d+)',            # "1 di 8"
+                r'\d+\s*/\s*(\d+)',             # "1 / 8" or "1/8"
+                r'(\d+)\s+pagine?',             # "8 pagine"
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, page_text, re.IGNORECASE)
+                if match:
+                    count = int(match.group(1))
+                    logger.info(f"✓ Detected {count} pages via text pattern: {pattern}")
+                    return count
+            
+            # Method 2: Count pagination indicators/dots
+            pagination_selectors = [
+                '.pagination-item',
+                '.page-indicator',
+                '[role="tab"]',
+                'button[aria-label*="Pagina"]',
+                '.flyer-page-indicator'
+            ]
+            
+            for selector in pagination_selectors:
+                elements = await self.page.query_selector_all(selector)
+                if elements and len(elements) > 1:
+                    logger.info(f"✓ Detected {len(elements)} pages via pagination indicators")
+                    return len(elements)
+            
+            # Method 3: Check URL structure for page parameter
+            url = self.page.url
+            if '/page/' in url:
+                # Try to detect max page by checking multiple URLs
+                logger.info("Attempting to detect page count via URL probing")
+                base_url = url.rsplit('/page/', 1)[0] + '/page/'
+                
+                # Quick check: does page 2 exist?
+                try:
+                    test_response = await self.page.goto(f"{base_url}2", wait_until="domcontentloaded", timeout=5000)
+                    if test_response and test_response.ok:
+                        # Go back to page 1
+                        await self.page.goto(f"{base_url}1", wait_until="networkidle")
+                        # At least 2 pages exist, but we don't know the max
+                        # Return -1 to signal button clicking method
+                        logger.info("Multiple pages detected via URL probing - will use button clicking")
+                        return -1
+                except:
+                    # Page 2 doesn't exist, only 1 page
+                    await self.page.goto(f"{base_url}1", wait_until="networkidle")
+                    logger.info("Only 1 page exists (URL probe failed)")
+                    return 1
+            
+            # Could not detect page count
+            logger.info("⚠️  Could not detect page count - will use button clicking method")
+            return -1
+            
+        except Exception as e:
+            logger.error(f"Page count detection failed: {e}", exc_info=True)
+            return -1
         
         try:
             # Try common page count indicators
@@ -252,35 +317,122 @@ class FlyerBrowser:
     
     async def take_screenshots_all_pages(self, page_count: int) -> List[str]:
         """
-        Take screenshots of all pages in the flyer.
+        Take screenshots of all pages in the flyer using hybrid approach.
         
         Args:
-            page_count: Total number of pages
+            page_count: Total number of pages (-1 means unknown, use button clicking)
             
         Returns:
             List of screenshot filepaths
         """
+        if page_count > 1:
+            # Method A: URL navigation (faster, when page count is known)
+            logger.info(f"📄 Using URL navigation for {page_count} pages")
+            return await self._capture_via_url_navigation(page_count)
+        else:
+            # Method B: Button clicking (fallback, when page count unknown)
+            logger.info(f"🔘 Using button clicking method (page count unknown)")
+            return await self._capture_via_button_clicks()
+    
+    async def _capture_via_url_navigation(self, page_count: int) -> List[str]:
+        """Capture pages using direct URL navigation (faster)"""
         screenshots = []
+        current_url = self.page.url
         
-        logger.info(f"Starting to capture all {page_count} pages")
+        # Extract base URL
+        if '/page/' in current_url:
+            base_url = current_url.rsplit('/page/', 1)[0] + '/page/'
+        else:
+            logger.warning("URL doesn't contain /page/ - falling back to button clicking")
+            return await self._capture_via_button_clicks()
         
         for page_num in range(1, page_count + 1):
-            logger.info(f"Processing page {page_num}/{page_count}")
+            logger.info(f"📸 Capturing page {page_num}/{page_count}")
             
-            # Navigate to page if not first page
-            if page_num > 1:
-                if not await self.navigate_to_page(page_num):
-                    logger.warning(f"Failed to navigate to page {page_num}, skipping")
-                    continue
-            
-            # Take screenshot
+            # Navigate to page
+            url = f"{base_url}{page_num}"
+            try:
+                await self.page.goto(url, wait_until="networkidle", timeout=30000)
+                await self.page.wait_for_timeout(1500)  # Let flyer render
+                
+                # Take screenshot
+                screenshot_path = await self.take_screenshot(page_num)
+                if screenshot_path:
+                    screenshots.append(screenshot_path)
+                else:
+                    logger.warning(f"Failed to capture page {page_num}")
+                    
+            except Exception as e:
+                logger.warning(f"Error capturing page {page_num}: {e}")
+                continue
+        
+        logger.info(f"✓ Captured {len(screenshots)}/{page_count} pages via URL navigation")
+        return screenshots
+    
+    async def _capture_via_button_clicks(self) -> List[str]:
+        """Capture pages by clicking 'next' button until exhausted (reliable fallback)"""
+        screenshots = []
+        page_num = 1
+        
+        # Next button selectors (from Lidl HTML)
+        NEXT_BUTTON_SELECTORS = [
+            'button.button--navigation[aria-label="Pagina successiva"]',  # Specific Lidl
+            'button[aria-label*="successiva"]',  # Generic "next" in Italian
+            'button[aria-label*="next"]',         # English fallback
+            'button.button--navigation.button--navigation-lidl'  # Class-based
+        ]
+        
+        while True:
+            # Capture current page
+            logger.info(f"📸 Capturing page {page_num}")
             screenshot_path = await self.take_screenshot(page_num)
+            
             if screenshot_path:
                 screenshots.append(screenshot_path)
             else:
-                logger.warning(f"Failed to capture screenshot for page {page_num}")
+                logger.warning(f"Failed to capture page {page_num}")
+                break
+            
+            # Find next button (try all selectors)
+            next_button = None
+            for selector in NEXT_BUTTON_SELECTORS:
+                next_button = await self.page.query_selector(selector)
+                if next_button:
+                    logger.debug(f"Found next button with selector: {selector}")
+                    break
+            
+            if not next_button:
+                logger.info(f"✓ No next button found - captured all {page_num} pages")
+                break
+            
+            # Check if button is disabled or hidden
+            try:
+                is_disabled = await next_button.get_attribute('disabled')
+                is_hidden = await next_button.is_hidden()
+                
+                if is_disabled or is_hidden:
+                    logger.info(f"✓ Next button disabled - captured all {page_num} pages")
+                    break
+                
+                # Click next button
+                await next_button.click()
+                logger.debug(f"Clicked next button → page {page_num + 1}")
+                
+                # Wait for page transition
+                await self.page.wait_for_timeout(2000)
+                
+                page_num += 1
+                
+                # Safety limit to prevent infinite loops
+                if page_num > 50:
+                    logger.warning("⚠️  Reached 50 page safety limit")
+                    break
+                    
+            except Exception as e:
+                logger.warning(f"Error clicking next button: {e}")
+                break
         
-        logger.info(f"Captured {len(screenshots)}/{page_count} pages successfully")
+        logger.info(f"✓ Captured {len(screenshots)} pages via button clicking")
         return screenshots
     
     async def close(self) -> None:
