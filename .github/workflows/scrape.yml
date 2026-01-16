@@ -37,13 +37,21 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium
 
-      - name: Run scraper
+      - name: Run scraper in benchmark mode
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           FLYER_URL: ${{ github.event.inputs.flyer_url || 'https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1' }}
         run: |
-          python -m src.main
+          python -m src.main --benchmark
 
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: data/benchmark/*.json
+          retention-days: 30
+      
       - name: Upload CSV artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -68,13 +76,28 @@ jobs:
           path: data/logs/*.log
           retention-days: 7
 
+      - name: Run benchmark scoring
+        if: always()
+        run: |
+          echo "==== BENCHMARK SCORING ===="
+          METADATA_FILE=$(ls data/benchmark/metadata_*.json 2>/dev/null | head -1)
+          if [ -f "$METADATA_FILE" ]; then
+            echo "Found metadata: $METADATA_FILE"
+            python scripts/score_models.py "$METADATA_FILE" || echo "Scoring failed or incomplete"
+          else
+            echo "No benchmark metadata found - skipping scoring"
+          fi
+      
       - name: Debug summary
         if: always()
         run: |
-          echo "==== SCRAPER DEBUG SUMMARY ===="
+          echo "==== BENCHMARK DEBUG SUMMARY ===="
           echo ""
           echo "Screenshots captured:"
           ls -lh data/screenshots/*.png 2>/dev/null || echo "No screenshots found"
+          echo ""
+          echo "Benchmark results:"
+          ls -lh data/benchmark/*.json 2>/dev/null || echo "No benchmark files found"
           echo ""
           echo "Products extracted:"
           ls -lh data/output/*.csv 2>/dev/null || echo "No CSV files found"
