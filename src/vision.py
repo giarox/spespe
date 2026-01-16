@@ -15,11 +15,16 @@ from src.logger import logger
 class VisionAnalyzer:
     """Handles image analysis using OpenRouter with retry logic and fallback models."""
     
-    # Models in order of preference
+    # Models in order of preference (will try sequentially if previous fails validation)
+    # Fallback triggered if: API error, None result, 0 products, OR no "Broccoli" found
     MODELS = [
-        "allenai/molmo-2-8b:free",  # Primary model
-        "nvidia/nemotron-nano-12b-v2-vl:free",  # First fallback
-        "mistralai/mistral-small-3.1-24b-instruct:free",  # Second fallback
+        "allenai/molmo-2-8b:free",                          # 1. Primary model
+        "nvidia/nemotron-nano-12b-v2-vl:free",             # 2. First fallback
+        "mistralai/mistral-small-3.1-24b-instruct:free",   # 3. Second fallback
+        "google/gemini-2.5-flash-lite",                    # 4. Google Gemini 2.5 Flash Lite
+        "x-ai/grok-4.1-fast",                              # 5. xAI Grok 4.1 Fast
+        "google/gemini-2.5-flash",                         # 6. Google Gemini 2.5 Flash
+        "google/gemini-3-flash-preview",                   # 7. Google Gemini 3 Flash Preview
     ]
     
     def __init__(self, api_key: str):
@@ -42,9 +47,18 @@ class VisionAnalyzer:
         self.current_model_index = 0
         self.max_retries = 2
         
-        logger.info(f"VisionAnalyzer initialized with model: {self.model}")
+        logger.info(f"VisionAnalyzer initialized with {len(self.MODELS)} models in fallback chain")
+        logger.info(f"Primary model: {self.model}")
+        logger.info(f"Fallback models: {len(self.MODELS)-1}")
+        logger.info(f"  1. {self.MODELS[0]}")
+        logger.info(f"  2. {self.MODELS[1]}")
+        logger.info(f"  3. {self.MODELS[2]}")
+        logger.info(f"  4. {self.MODELS[3]}")
+        logger.info(f"  5. {self.MODELS[4]}")
+        logger.info(f"  6. {self.MODELS[5]}")
+        logger.info(f"  7. {self.MODELS[6]}")
         logger.info(f"API endpoint: {self.base_url}")
-        logger.info(f"Retry policy: {self.max_retries} retries + {len(self.MODELS)-1} fallback models")
+        logger.info(f"Retry policy: {self.max_retries} retries per model + validation-based fallback")
     
     def _encode_image_to_base64(self, image_path: str) -> str:
         """
@@ -136,11 +150,13 @@ class VisionAnalyzer:
     def analyze_flyer_page(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
         Analyze a flyer page image to extract product information.
-        Robust retry and fallback strategy:
+        Robust retry and fallback strategy with 7 models:
         - 2 retries ONLY on actual failures (errors, None results)
         - If model works but finds 0 products → immediately switch to fallback
+        - If model finds products but NO "Broccoli" → hallucination detected, switch
         - Auto-switches to next model after 2 failed attempts
-        - Maximum 6 total attempts (2 per model × 3 models)
+        - Maximum 14 total attempts (2 per model × 7 models)
+        - Will keep trying until valid extraction found or all models exhausted
         
         Args:
             image_path: Path to flyer screenshot
