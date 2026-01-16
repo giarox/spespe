@@ -209,7 +209,7 @@ Can you confirm you can process and analyze images? Answer with just "YES" or "N
             method_a_pass = bool(response_a and "yes" in response_a.lower())
             verification_results["method_a"] = method_a_pass
             verification_results["details"]["method_a"] = response_a
-            logger.info(f"    {'✓ PASS' if method_a_pass else '✗ FAIL'}: {response_a[:50] if response_a else 'No response'}")
+            logger.info(f"    {'✓ PASS' if method_a_pass else '✗ FAIL'}: {response_a if response_a else 'No response'}")
             
             # METHOD B: Content verification (3 questions)
             logger.info("  [B] Verifying image content...")
@@ -235,7 +235,7 @@ Format your answer as: COLOR: [color] | FLYER_TYPE: [type] | SUPERMARKET: [name]
             
             verification_results["method_b"] = method_b_pass
             verification_results["details"]["method_b"] = response_b
-            logger.info(f"    {'✓ PASS' if method_b_pass else '✗ FAIL'}: {response_b[:80] if response_b else 'No response'}")
+            logger.info(f"    {'✓ PASS' if method_b_pass else '✗ FAIL'}: {response_b if response_b else 'No response'}")
             
             # METHOD C: Metadata verification
             logger.info("  [C] Verifying image metadata...")
@@ -246,7 +246,7 @@ Can you confirm you received a high-resolution/4K image? Answer with just "YES" 
             method_c_pass = bool(response_c and "yes" in response_c.lower())
             verification_results["method_c"] = method_c_pass
             verification_results["details"]["method_c"] = response_c
-            logger.info(f"    {'✓ PASS' if method_c_pass else '✗ FAIL'}: {response_c[:50] if response_c else 'No response'}")
+            logger.info(f"    {'✓ PASS' if method_c_pass else '✗ FAIL'}: {response_c if response_c else 'No response'}")
             
             # Calculate confidence score
             confidence_count = int(method_a_pass) + int(method_b_pass) + int(method_c_pass)
@@ -535,6 +535,13 @@ Return ONLY valid JSON (no markdown, no text):
             content = response_data["choices"][0]["message"]["content"]
             logger.debug(f"Model response length: {len(content)} characters")
             
+            # Log full model response for debugging (save to artifacts)
+            logger.info(f"\n{'='*80}")
+            logger.info(f"FULL RESPONSE FROM {self.model}:")
+            logger.info(f"{'='*80}")
+            logger.info(content)
+            logger.info(f"{'='*80}\n")
+            
             # Extract JSON from response
             try:
                 result = json.loads(content)
@@ -548,6 +555,7 @@ Return ONLY valid JSON (no markdown, no text):
                     result = json.loads(json_str)
                 else:
                     logger.error("Could not find JSON in response")
+                    logger.error(f"Raw response was: {content}")
                     return None
             
             product_count = result.get("total_products_found", len(result.get("products", [])))
