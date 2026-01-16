@@ -93,6 +93,46 @@ class VisionAnalyzer:
             return True
         return False
     
+    def _validate_extraction(self, result: Optional[Dict[str, Any]]) -> bool:
+        """
+        Validate extraction quality by checking for known products.
+        
+        For Lidl flyers, "Broccoli" is a known reliable product that should
+        be extracted if the model is working correctly. If extraction finds
+        many products but NOT Broccoli, it indicates hallucination.
+        
+        Args:
+            result: Analysis result from model
+            
+        Returns:
+            True if extraction looks valid, False if likely hallucinating
+        """
+        if not result or not result.get("products"):
+            # No products found - could be 0 products or error
+            return True  # Let other logic handle this
+        
+        # Get all product names (lowercase for comparison)
+        product_names = [p.get('name', '').lower() for p in result.get('products', [])]
+        
+        # Check for known Broccoli variants
+        broccoli_keywords = ['broccoli', 'brocoli', 'broccolo']
+        found_broccoli = any(
+            any(keyword in name for keyword in broccoli_keywords)
+            for name in product_names
+        )
+        
+        product_count = result.get('total_products_found', len(result.get('products', [])))
+        
+        if found_broccoli:
+            logger.info(f"✓ Validation PASSED: Found 'Broccoli' among {product_count} products - extraction is valid")
+            return True
+        elif product_count > 0:
+            logger.warning(f"⚠ Validation FAILED: Found {product_count} products but NO 'Broccoli' - likely hallucinating")
+            return False
+        else:
+            logger.info(f"Validation: 0 products found (not hallucinating, but no data)")
+            return True  # Not hallucinating, just no products
+    
     def analyze_flyer_page(self, image_path: str) -> Optional[Dict[str, Any]]:
         """
         Analyze a flyer page image to extract product information.
@@ -127,13 +167,16 @@ class VisionAnalyzer:
                         product_count = result.get("total_products_found", 0)
                         logger.info(f"✓ Model analyzed successfully, found {product_count} products")
                         
-                        # If we found products, success!
-                        if product_count > 0:
-                            logger.info(f"✓✓ SUCCESS: Extracted {product_count} products with {self.model}")
+                        # Validate extraction quality
+                        is_valid = self._validate_extraction(result)
+                        
+                        # If extraction is valid, success!
+                        if is_valid:
+                            logger.info(f"✓✓ SUCCESS: Extracted {product_count} valid products with {self.model}")
                             return result
                         
-                        # 0 products found - don't retry, go straight to fallback
-                        logger.warning(f"Model {self.model} found 0 products - switching to fallback immediately")
+                        # Validation failed (likely hallucinating) - go to next model
+                        logger.warning(f"Extraction validation failed (hallucination detected) - switching to fallback immediately")
                         break  # Break retry loop, go to next model
                     else:
                         # Result is None - this is a failure, count it
