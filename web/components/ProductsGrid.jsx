@@ -40,6 +40,7 @@ export default function ProductsGrid({ searchQuery }) {
     lastCount: 0,
     lastPage: 0
   })
+  const [showFuzzyHint, setShowFuzzyHint] = useState(false)
   const sentinelRef = useRef(null)
 
   const normalizedQuery = useMemo(() => normalizeQuery(searchQuery), [searchQuery])
@@ -54,6 +55,7 @@ export default function ProductsGrid({ searchQuery }) {
     setProducts([])
     setHasMore(true)
     setPage(0)
+    setShowFuzzyHint(false)
     setDebug({
       query: normalizedQuery,
       lastAction: 'initial',
@@ -78,6 +80,7 @@ export default function ProductsGrid({ searchQuery }) {
     setProducts(freshData.slice(0, MAX_ITEMS))
     setHasMore(freshData.length === PAGE_SIZE)
     setLoading(false)
+    setShowFuzzyHint(Boolean(normalizedQuery) && freshData.length > 0)
     setDebug({
       query: normalizedQuery,
       lastAction: 'loaded',
@@ -186,6 +189,9 @@ export default function ProductsGrid({ searchQuery }) {
       <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
         <span className="font-semibold">Debug:</span> query=&quot;{debug.query}&quot; action={debug.lastAction} page={debug.lastPage} count={debug.lastCount} total={products.length}
       </div>
+      {showFuzzyHint && (
+        <p className="text-xs text-blue-600">Mostro risultati simili per la tua ricerca</p>
+      )}
       {products.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 transition-all duration-300">
           {products.map((product) => (
