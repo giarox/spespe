@@ -34,9 +34,19 @@ export default function ProductsGrid({ searchQuery }) {
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
   const [error, setError] = useState(null)
+  const [debug, setDebug] = useState({
+    query: '',
+    lastAction: 'idle',
+    lastCount: 0,
+    lastPage: 0
+  })
   const sentinelRef = useRef(null)
 
   const normalizedQuery = useMemo(() => normalizeQuery(searchQuery), [searchQuery])
+
+  useEffect(() => {
+    console.log('[ProductsGrid] query update', normalizedQuery)
+  }, [normalizedQuery])
 
   const loadInitial = useCallback(async () => {
     setLoading(true)
@@ -44,12 +54,22 @@ export default function ProductsGrid({ searchQuery }) {
     setProducts([])
     setHasMore(true)
     setPage(0)
+    setDebug({
+      query: normalizedQuery,
+      lastAction: 'initial',
+      lastCount: 0,
+      lastPage: 0
+    })
 
     const { data, error: fetchError } = await buildQuery(normalizedQuery, 0)
 
     if (fetchError) {
       setError(fetchError.message)
       setLoading(false)
+      setDebug((prev) => ({
+        ...prev,
+        lastAction: 'error'
+      }))
       return
     }
 
@@ -58,6 +78,12 @@ export default function ProductsGrid({ searchQuery }) {
     setProducts(freshData.slice(0, MAX_ITEMS))
     setHasMore(freshData.length === PAGE_SIZE)
     setLoading(false)
+    setDebug({
+      query: normalizedQuery,
+      lastAction: 'loaded',
+      lastCount: freshData.length,
+      lastPage: 0
+    })
   }, [normalizedQuery])
 
   const loadMore = useCallback(async () => {
@@ -67,12 +93,21 @@ export default function ProductsGrid({ searchQuery }) {
 
     const nextPage = page + 1
     setLoadingMore(true)
+    setDebug((prev) => ({
+      ...prev,
+      lastAction: 'loading-more',
+      lastPage: nextPage
+    }))
 
     const { data, error: fetchError } = await buildQuery(normalizedQuery, nextPage)
 
     if (fetchError) {
       setError(fetchError.message)
       setLoadingMore(false)
+      setDebug((prev) => ({
+        ...prev,
+        lastAction: 'error'
+      }))
       return
     }
 
@@ -83,6 +118,12 @@ export default function ProductsGrid({ searchQuery }) {
     setPage(nextPage)
     setHasMore(freshData.length === PAGE_SIZE)
     setLoadingMore(false)
+    setDebug((prev) => ({
+      ...prev,
+      lastAction: 'loaded-more',
+      lastCount: freshData.length,
+      lastPage: nextPage
+    }))
   }, [normalizedQuery, page, products, loadingMore, loading, hasMore])
 
   useEffect(() => {
@@ -142,6 +183,9 @@ export default function ProductsGrid({ searchQuery }) {
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-dashed border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+        <span className="font-semibold">Debug:</span> query=&quot;{debug.query}&quot; action={debug.lastAction} page={debug.lastPage} count={debug.lastCount} total={products.length}
+      </div>
       {products.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 transition-all duration-300">
           {products.map((product) => (

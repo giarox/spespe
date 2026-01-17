@@ -28,6 +28,7 @@ export default function SearchBar({ initialQuery = '' }) {
       const currentQuery = buildQueryString(initialQuery.trim())
 
       if (nextQuery !== currentQuery) {
+        console.log('[SearchBar] update query', { nextQuery, currentQuery })
         router.replace(nextQuery || '/', { scroll: false })
       }
     }, 200)

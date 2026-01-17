@@ -4,7 +4,8 @@ import ProductsGrid from '@/components/ProductsGrid'
 export const revalidate = 3600 // Revalidate every hour
 
 export default async function Home({ searchParams }) {
-  const searchQuery = typeof searchParams?.q === 'string' ? searchParams.q.trim() : ''
+  const resolvedSearchParams = await searchParams
+  const searchQuery = typeof resolvedSearchParams?.q === 'string' ? resolvedSearchParams.q.trim() : ''
   const title = searchQuery ? `Risultati per “${searchQuery}”` : '🛒 Offerte Lidl'
 
   return (
