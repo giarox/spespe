@@ -9,7 +9,7 @@ export default async function Home() {
     .from('products')
     .select('*')
     .eq('supermarket', 'Lidl')
-    .order('discount_percent', { ascending: false })
+    .order('discount_percent', { ascending: false, nullsFirst: false })
   
   if (error) {
     console.error('Failed to fetch products:', error)

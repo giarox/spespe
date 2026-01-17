@@ -37,6 +37,7 @@ export default function ProductCard({ product }) {
   const formattedCurrent = formatCurrency(currentPrice) ?? '—'
   const formattedOld = displayOldPrice && currentPrice && displayOldPrice > currentPrice ? formatCurrency(displayOldPrice) : null
   const formattedSaving = savingValue ? formatCurrency(savingValue) : null
+  const hasDiscount = Boolean(formattedOld || product.discount_percent)
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -56,7 +57,7 @@ export default function ProductCard({ product }) {
       <CardContent>
         <div className="flex flex-col gap-1 mb-2">
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-green-600">
+            <span className={`text-3xl font-bold ${hasDiscount ? 'text-green-600' : 'text-gray-900'}`}>
               {formattedCurrent}
             </span>
             {formattedOld && (
@@ -65,7 +66,7 @@ export default function ProductCard({ product }) {
               </span>
             )}
           </div>
-          {formattedOld && (
+          {formattedOld ? (
             <div className="flex items-center gap-3 text-sm text-gray-400">
               <span className="line-through">
                 {formattedOld}
@@ -76,6 +77,8 @@ export default function ProductCard({ product }) {
                 </span>
               )}
             </div>
+          ) : (
+            <p className="text-xs text-gray-400">Prezzo corrente</p>
           )}
         </div>
         {product.weight_or_pack && (
