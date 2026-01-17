@@ -10,7 +10,6 @@ export default async function Home() {
     .select('*')
     .eq('supermarket', 'Lidl')
     .order('discount_percent', { ascending: false })
-    .limit(50)
   
   if (error) {
     console.error('Failed to fetch products:', error)
