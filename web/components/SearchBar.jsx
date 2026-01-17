@@ -1,46 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 
-const buildQueryString = (query) => {
-  if (!query) {
-    return ''
-  }
-  const params = new URLSearchParams({ q: query })
-  return `?${params.toString()}`
-}
-
-export default function SearchBar({ initialQuery = '' }) {
-  const router = useRouter()
-  const [value, setValue] = useState(initialQuery)
-
-  useEffect(() => {
-    setValue(initialQuery)
-  }, [initialQuery])
-
-  const normalizedValue = useMemo(() => value.trim(), [value])
-
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      const nextQuery = buildQueryString(normalizedValue)
-      const currentQuery = buildQueryString(initialQuery.trim())
-
-      if (nextQuery !== currentQuery) {
-        console.log('[SearchBar] update query', { nextQuery, currentQuery })
-        router.replace(nextQuery || '/', { scroll: false })
-      }
-    }, 200)
-
-    return () => clearTimeout(handle)
-  }, [normalizedValue, router, initialQuery])
-
+export default function SearchBar({ value, onChange }) {
   return (
     <div className="w-full md:max-w-sm">
       <Input
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         placeholder="Cerca prodotto o brand"
         className="bg-white"
       />

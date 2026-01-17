@@ -1,5 +1,4 @@
-import SearchBar from '@/components/SearchBar'
-import ProductsGrid from '@/components/ProductsGrid'
+import SearchExperience from '@/components/SearchExperience'
 
 export const revalidate = 3600 // Revalidate every hour
 
@@ -19,10 +18,9 @@ export default async function Home({ searchParams }) {
             Cerca tra prodotti e brand in tempo reale
           </p>
         </div>
-        <SearchBar initialQuery={searchQuery} />
       </div>
       
-      <ProductsGrid searchQuery={searchQuery} />
+      <SearchExperience initialQuery={searchQuery} />
     </div>
   )
 }
