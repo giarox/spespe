@@ -166,12 +166,15 @@ export default function ProductsGrid({ searchQuery }) {
 
   return (
     <div className="space-y-4">
+      <p className="font-serif text-2xl italic text-[#7a564c]">
+        Le migliori offerte della settimana
+      </p>
       {showFuzzyHint && (
-        <p className="text-xs text-blue-600">Mostro risultati simili per la tua ricerca</p>
+        <p className="text-xs text-[#f16b6b]">Mostro risultati simili per la tua ricerca</p>
       )}
       {products.length > 0 ? (
         <div
-          className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 transition-all duration-300 ${
+          className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
             isTransitioning ? 'opacity-70 blur-[1px]' : 'opacity-100'
           }`}
         >
@@ -183,15 +186,15 @@ export default function ProductsGrid({ searchQuery }) {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-xl text-gray-400">Nessun risultato</p>
-          <p className="text-sm text-gray-500 mt-2">Prova con un termine diverso</p>
+          <p className="text-xl text-[#b18474]">Nessun risultato</p>
+          <p className="text-sm text-[#caa79b] mt-2">Prova con un termine diverso</p>
         </div>
       )}
 
       {loadingMore && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, idx) => (
-            <div key={idx} className="h-72 rounded-xl border bg-white animate-pulse" />
+        <div className="grid grid-cols-1 gap-6">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="h-40 rounded-[28px] border border-[#f1d6c6] bg-white/70 animate-pulse" />
           ))}
         </div>
       )}
@@ -199,7 +202,7 @@ export default function ProductsGrid({ searchQuery }) {
       {hasMore ? (
         <div ref={sentinelRef} />
       ) : (
-        <p className="text-center text-xs text-gray-400">Fine risultati</p>
+        <p className="text-center text-xs text-[#caa79b]">Fine risultati</p>
       )}
     </div>
   )

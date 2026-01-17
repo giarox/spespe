@@ -9,7 +9,7 @@ export default function SearchExperience({ initialQuery = '' }) {
   const [query, setQuery] = useState(initialQuery)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <SearchBar value={query} onChange={setQuery} />
       <ProductsGrid searchQuery={query} />
       <ShoppingListDrawer />

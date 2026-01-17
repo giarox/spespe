@@ -20,22 +20,22 @@ export default function ShoppingListDrawer() {
   const grouped = useMemo(() => groupByStore(items), [items])
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-full max-w-sm px-4 md:px-0">
-      <div className="rounded-2xl border border-amber-200 bg-amber-50/90 shadow-xl backdrop-blur">
-        <div className="flex items-center justify-between border-b border-amber-200 px-4 py-3">
+    <div className="fixed bottom-6 right-6 z-40 w-full max-w-sm px-4 md:px-0">
+      <div className="rounded-[28px] border border-[#f1d6c6] bg-white/90 shadow-[0_20px_40px_rgba(154,115,96,0.2)] backdrop-blur">
+        <div className="flex items-center justify-between border-b border-[#f1d6c6] px-4 py-3">
           <div>
-            <p className="text-sm font-semibold text-amber-900">Lista della Spesa</p>
-            <p className="text-xs text-amber-700">{items.length} articoli</p>
+            <p className="text-sm font-semibold text-[#6d4b42]">Lista della Spesa</p>
+            <p className="text-xs text-[#b18474]">{items.length} articoli</p>
           </div>
           <span className="text-lg">📝</span>
         </div>
         <div className="max-h-64 overflow-y-auto px-4 py-3">
           {items.length === 0 ? (
-            <p className="text-sm text-amber-700">Aggiungi prodotti per iniziare la lista.</p>
+            <p className="text-sm text-[#b18474]">Aggiungi prodotti per iniziare la lista.</p>
           ) : (
             Object.entries(grouped).map(([store, storeItems]) => (
               <div key={store} className="mb-4 last:mb-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#b18474]">
                   {store}
                 </p>
                 <ul className="mt-2 space-y-2">
@@ -45,20 +45,20 @@ export default function ShoppingListDrawer() {
                         type="checkbox"
                         checked={item.checked}
                         onChange={(event) => toggleItem(item.id, event.target.checked)}
-                        className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                        className="mt-1 h-4 w-4 rounded border-[#f1d6c6] text-[#e67e63] focus:ring-[#e67e63]"
                       />
                       <div className="flex-1">
-                        <p className={`text-sm ${item.checked ? 'line-through text-amber-400' : 'text-amber-900'}`}>
+                        <p className={`text-sm ${item.checked ? 'line-through text-[#caa79b]' : 'text-[#6d4b42]'}`}>
                           {item.product?.product_name}
                         </p>
                         {item.product?.brand && (
-                          <p className="text-xs text-amber-600">{item.product.brand}</p>
+                          <p className="text-xs text-[#b18474]">{item.product.brand}</p>
                         )}
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-amber-700 hover:text-amber-900"
+                        className="text-[#b18474] hover:text-[#6d4b42]"
                         onClick={() => removeItem(item.id)}
                       >
                         ✕

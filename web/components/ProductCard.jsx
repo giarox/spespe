@@ -55,75 +55,58 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <Card className={`hover:shadow-lg transition-shadow ${isAdding ? 'scale-[1.02] ring-2 ring-amber-200' : ''}`}>
-      <CardHeader className="pb-3">
-        {product.discount_percent && (
-          <Badge variant="destructive" className="mb-2">
-            {product.discount_percent}
-          </Badge>
-        )}
-        <h3 className="text-lg font-semibold leading-tight">
-          {product.product_name}
-        </h3>
-        {product.brand && (
-          <p className="text-sm text-muted-foreground">{product.brand}</p>
-        )}
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-1 mb-2">
-          <div className="flex items-baseline gap-2">
-            <span className={`text-3xl font-bold ${hasDiscount ? 'text-green-600' : 'text-gray-900'}`}>
-              {formattedCurrent}
-            </span>
-            {formattedOld && (
-              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
-                Prima
+    <Card className={`overflow-hidden rounded-[32px] border border-[#f1d6c6] bg-white shadow-[0_18px_40px_rgba(154,115,96,0.12)] ${isAdding ? 'scale-[1.01]' : ''}`}>
+      <CardContent className="flex items-center gap-4 px-6 py-6">
+        <div className="h-20 w-24 rounded-2xl bg-[#fbe8d8] shadow-inner" />
+        <div className="flex-1">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-[#6d4b42]">
+                {product.product_name}
+              </h3>
+              {product.brand && (
+                <p className="text-sm text-[#b18474]">{product.brand}</p>
+              )}
+            </div>
+            {product.discount_percent && (
+              <span className="rounded-full bg-[#f7b960] px-3 py-1 text-xs font-semibold text-[#6d4b42]">
+                {product.discount_percent}
               </span>
             )}
           </div>
-          {formattedOld ? (
-            <div className="flex items-center gap-3 text-sm text-gray-400">
-              <span className="line-through">
+          <div className="mt-4 flex items-baseline gap-4">
+            <span className="text-3xl font-semibold text-[#e67e63]">
+              {formattedCurrent}
+            </span>
+            {formattedOld && (
+              <span className="text-lg text-[#caa79b] line-through">
                 {formattedOld}
               </span>
-              {formattedSaving && (
-                <span className="text-xs font-semibold text-emerald-600">
-                  Risparmi {formattedSaving}
-                </span>
-              )}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400">Prezzo corrente</p>
-          )}
+            )}
+          </div>
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-[#b18474]">
+          {product.weight_or_pack && <span>{product.weight_or_pack}</span>}
+          {product.price_per_unit && <span>{product.price_per_unit}</span>}
         </div>
-        {product.weight_or_pack && (
-          <p className="text-sm text-gray-600 mb-1">
-            {product.weight_or_pack}
-          </p>
-        )}
-        {product.price_per_unit && (
-          <p className="text-xs text-gray-500">
-            {product.price_per_unit}
-          </p>
-        )}
         {product.notes && product.notes.length > 0 && (
-          <div className="mt-2 pt-2 border-t">
-            {product.notes.map((note, idx) => (
-              <p key={idx} className="text-xs text-blue-600 italic">
-                ℹ️ {note}
-              </p>
-            ))}
+          <div className="mt-2 text-xs italic text-[#d39486]">
+            {product.notes[0]}
           </div>
         )}
-        <Button
-          className="w-full mt-3"
-          size="lg"
-          onClick={handleAdd}
-          disabled={alreadyAdded}
-        >
-          {alreadyAdded ? 'Aggiunto' : 'Aggiungi alla Lista'}
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+      <Button
+        aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
+        className={`h-14 w-14 rounded-full bg-[#f16b6b] text-white shadow-[0_12px_24px_rgba(241,107,107,0.35)] ${
+          alreadyAdded ? 'opacity-60' : 'hover:scale-105'
+        }`}
+        size="icon"
+        onClick={handleAdd}
+        disabled={alreadyAdded}
+      >
+        <span className="text-xl">🛒</span>
+      </Button>
+    </CardContent>
+  </Card>
   )
 }
+
