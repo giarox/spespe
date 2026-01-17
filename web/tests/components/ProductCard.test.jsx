@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import ProductCard from '@/components/ProductCard'
+import { ShoppingListProvider } from '@/components/ShoppingListContext'
+
+const renderWithProvider = (ui) => render(
+  <ShoppingListProvider>
+    {ui}
+  </ShoppingListProvider>
+)
 
 describe('ProductCard Component', () => {
   const mockProduct = {
@@ -16,39 +23,39 @@ describe('ProductCard Component', () => {
   }
 
   it('renders product name', () => {
-    render(<ProductCard product={mockProduct} />)
+    renderWithProvider(<ProductCard product={mockProduct} />)
     expect(screen.getByText('Broccoli')).toBeInTheDocument()
   })
 
   it('displays current price', () => {
-    render(<ProductCard product={mockProduct} />)
+    renderWithProvider(<ProductCard product={mockProduct} />)
     expect(screen.getByText(/0,89 €/)).toBeInTheDocument()
   })
 
   it('displays old price with strikethrough', () => {
-    render(<ProductCard product={mockProduct} />)
+    renderWithProvider(<ProductCard product={mockProduct} />)
     const oldPrice = screen.getByText(/1,29 €/)
     expect(oldPrice).toBeInTheDocument()
     expect(oldPrice).toHaveClass('line-through')
   })
 
   it('shows discount badge', () => {
-    render(<ProductCard product={mockProduct} />)
+    renderWithProvider(<ProductCard product={mockProduct} />)
     expect(screen.getByText('-31%')).toBeInTheDocument()
   })
 
   it('displays weight/pack information', () => {
-    render(<ProductCard product={mockProduct} />)
+    renderWithProvider(<ProductCard product={mockProduct} />)
     expect(screen.getByText('500 g confezione')).toBeInTheDocument()
   })
 
   it('shows Italian notes', () => {
-    render(<ProductCard product={mockProduct} />)
+    renderWithProvider(<ProductCard product={mockProduct} />)
     expect(screen.getByText(/Coltivato in Italia/)).toBeInTheDocument()
   })
 
   it('renders add to list button', () => {
-    render(<ProductCard product={mockProduct} />)
+    renderWithProvider(<ProductCard product={mockProduct} />)
     expect(screen.getByRole('button', { name: /Aggiungi alla Lista/ })).toBeInTheDocument()
   })
 
@@ -58,12 +65,12 @@ describe('ProductCard Component', () => {
       discount_percent: null,
       old_price: null
     }
-    render(<ProductCard product={productWithoutDiscount} />)
+    renderWithProvider(<ProductCard product={productWithoutDiscount} />)
     expect(screen.queryByText('-31%')).not.toBeInTheDocument()
   })
 
   it('handles products without brand', () => {
-    render(<ProductCard product={mockProduct} />)
+    renderWithProvider(<ProductCard product={mockProduct} />)
     expect(screen.queryByText('Brand Name')).not.toBeInTheDocument()
   })
 
@@ -72,7 +79,7 @@ describe('ProductCard Component', () => {
       ...mockProduct,
       brand: 'Realforno'
     }
-    render(<ProductCard product={productWithBrand} />)
+    renderWithProvider(<ProductCard product={productWithBrand} />)
     expect(screen.getByText('Realforno')).toBeInTheDocument()
   })
 })

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useShoppingList } from '@/components/ShoppingListContext'
 
 const parseNumber = (value) => {
   if (value === null || value === undefined) {
@@ -26,6 +28,9 @@ const formatCurrency = (value) => {
 }
 
 export default function ProductCard({ product }) {
+  const { addItem, hasProduct } = useShoppingList()
+  const [isAdding, setIsAdding] = useState(false)
+
   const currentPrice = parseNumber(product.current_price)
   const rawOldPrice = parseNumber(product.old_price)
   const explicitSaving = parseNumber(product.saving_amount)
@@ -38,9 +43,19 @@ export default function ProductCard({ product }) {
   const formattedOld = displayOldPrice && currentPrice && displayOldPrice > currentPrice ? formatCurrency(displayOldPrice) : null
   const formattedSaving = savingValue ? formatCurrency(savingValue) : null
   const hasDiscount = Boolean(formattedOld || product.discount_percent)
+  const alreadyAdded = hasProduct(product.id)
+
+  const handleAdd = async () => {
+    if (alreadyAdded || isAdding) {
+      return
+    }
+    setIsAdding(true)
+    await addItem(product)
+    setTimeout(() => setIsAdding(false), 300)
+  }
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className={`hover:shadow-lg transition-shadow ${isAdding ? 'scale-[1.02] ring-2 ring-amber-200' : ''}`}>
       <CardHeader className="pb-3">
         {product.discount_percent && (
           <Badge variant="destructive" className="mb-2">
@@ -100,8 +115,13 @@ export default function ProductCard({ product }) {
             ))}
           </div>
         )}
-        <Button className="w-full mt-3" size="lg">
-          Aggiungi alla Lista
+        <Button
+          className="w-full mt-3"
+          size="lg"
+          onClick={handleAdd}
+          disabled={alreadyAdded}
+        >
+          {alreadyAdded ? 'Aggiunto' : 'Aggiungi alla Lista'}
         </Button>
       </CardContent>
     </Card>

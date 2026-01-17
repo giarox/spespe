@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import { ShoppingListProvider } from '@/components/ShoppingListContext'
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,14 +15,21 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Spespe - Offerte Supermercati",
   description: "Le migliori offerte dei supermercati italiani - Lidl, Conad, Esselunga",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
-  themeColor: "#3b82f6",
 };
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5
+}
+
+export const themeColor = "#3b82f6"
 
 export default function RootLayout({ children }) {
   return (
     <html lang="it">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}>
+        <ShoppingListProvider>
         {/* Mobile-optimized header */}
         <header className="bg-white shadow-sm sticky top-0 z-50 border-b">
           <div className="container mx-auto px-4 py-4">
@@ -49,6 +57,7 @@ export default function RootLayout({ children }) {
             </p>
           </div>
         </footer>
+        </ShoppingListProvider>
       </body>
     </html>
   );
