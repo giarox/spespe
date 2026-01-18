@@ -1,3 +1,3 @@
 """
-Tests for Spespe scraper
+Tests for Spespe Spotter
 """

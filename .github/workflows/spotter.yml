@@ -1,4 +1,4 @@
-name: Spespe - Weekly Flyer Scraper
+name: Spespe - Weekly Flyer Spotter
 
 on:
   schedule:
@@ -14,8 +14,8 @@ permissions:
   contents: write
 
 jobs:
-  scrape:
-    name: Scrape Lidl Flyer
+  spotter:
+    name: Run Spotter (Lidl)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -37,13 +37,13 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium
 
-      - name: Run scraper
+      - name: Run Spotter
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          FLYER_URL: ${{ github.event.inputs.flyer_url || 'https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1' }}
+          SPOTTER_FLYER_URL: ${{ github.event.inputs.flyer_url || 'https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1' }}
         run: |
-          python -m src.main
-      
+          python -m src.spotter.run --store lidl
+
       - name: Import to Supabase
         if: success()
         env:
@@ -74,14 +74,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: scraper-logs
+          name: spotter-logs
           path: data/logs/*.log
           retention-days: 7
 
       - name: Debug summary
         if: always()
         run: |
-          echo "==== SCRAPER DEBUG SUMMARY ===="
+          echo "==== SPOTTER DEBUG SUMMARY ===="
           echo ""
           echo "Screenshots captured:"
           ls -lh data/screenshots/*.png 2>/dev/null || echo "No screenshots found"

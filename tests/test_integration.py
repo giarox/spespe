@@ -1,5 +1,5 @@
 """
-Integration tests for Spespe scraper.
+Integration tests for Spespe Spotter.
 Tests module interactions and data flow.
 """
 

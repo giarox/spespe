@@ -97,7 +97,7 @@ Backend:
 - Database to store products
 - API to serve data to frontend
 - User authentication (for shopping lists)
-- CSV import pipeline (scraper → database)
+- CSV import pipeline (spotter → database)
 Infrastructure:
 - Hosting for frontend
 - Database hosting
@@ -147,7 +147,7 @@ Why Supabase (not other databases):
 - ✅ Built-in authentication (shopping lists per user)
 - ✅ Real-time subscriptions (future: live deal updates)
 - ✅ PostgreSQL (real SQL, not limited NoSQL)
-- ✅ Easy CSV import (for your scraper data)
+- ✅ Easy CSV import (for your spotter data)
 - ✅ Dashboard UI (browse data like Excel)
 What you'll do:
 // This is ALL the code to fetch products
@@ -238,7 +238,7 @@ When to upgrade: If app gets complex (100+ components), consider Zustand. Not ne
 What it is: Automated weekly data refresh.
 Flow:
 Monday 9am:
-1. GitHub Actions runs scraper
+1. GitHub Actions runs spotter
 2. Generates CSV (Lidl products)
 3. Uploads CSV to Supabase storage
 4. Supabase trigger imports CSV → database
@@ -313,7 +313,7 @@ System Diagram
 Data Flow
 Weekly Update Cycle:
 Monday 9:00am (Europe/Rome):
-├─ GitHub Actions triggers scraper
+├─ GitHub Actions triggers spotter
 ├─ Scraper runs (current working pipeline)
 ├─ CSV generated: lidl_products_20260116.csv
 ├─ CSV uploaded to Supabase Storage (bucket: flyer-data)
@@ -676,10 +676,10 @@ Tasks:
 3. Testing & Monitoring (1 hour)
    - Test full end-to-end flow
    - Set up Supabase monitoring
-   - Email notifications on scraper failure
-Deliverable: Fully automated pipeline (scraper → database → frontend).
+   - Email notifications on spotter failure
+Deliverable: Fully automated pipeline (spotter → database → frontend).
 Success Criteria:
-- ✅ Monday scraper automatically updates database
+- ✅ Monday spotter automatically updates database
 - ✅ Frontend shows new deals without manual intervention
 - ✅ Old data archived (price history)
 - ✅ No manual CSV uploads needed
@@ -996,7 +996,7 @@ Key Files:
 - src/browser.py - Playwright screenshot capture
 - src/extractor.py - Product structuring
 - src/csv_export.py - CSV generation
-- .github/workflows/scrape.yml - Automated execution
+- .github/workflows/spotter.yml - Automated execution
 How It Works:
 1. Monday 9am: GitHub Actions triggers
 2. Playwright captures Lidl flyer screenshot (4K)
@@ -1144,8 +1144,8 @@ A: Unlikely for year 1. But if it does:
 4. Archive historical data to CSV
 Q: Can I add other supermarkets later?
 A: Yes! Easy:
-1. Create new scraper for Conad/Esselunga (copy Lidl scraper)
-2. Run weekly alongside Lidl scraper
+1. Create new spotter for Conad/Esselunga (copy Lidl spotter)
+2. Run weekly alongside Lidl spotter
 3. Import CSV to same products table (just different supermarket value)
 4. Frontend automatically shows all stores
 Q: What if I want iOS/Android apps later?
@@ -1163,11 +1163,11 @@ await supabase.auth.signInWithPassword({ email, password })
 const { data: { user } } = await supabase.auth.getUser()
 // Shopping lists are automatically filtered by user_id
 That's it. Supabase handles sessions, tokens, security.
-Q: What if scraper breaks?
+Q: What if spotter breaks?
 A: Monitoring + Quick Fix:
 1. GitHub Actions emails you on failure
 2. Check logs in artifacts
-3. Fix scraper (usually minor changes to selectors)
+3. Fix spotter (usually minor changes to selectors)
 4. Re-run workflow manually
 5. Normal users see cached data (still useful)
 Q: How do I debug issues?
@@ -1180,7 +1180,7 @@ A: Debugging Tools:
 ---
 File Structure After Completion
 spespe/ (monorepo)
-├── scraper/                 # Current scraper code (move here)
+├── spotter/                 # Current spotter code (move here)
 │   ├── src/
 │   │   ├── vision.py
 │   │   ├── browser.py
@@ -1217,11 +1217,11 @@ Documentation Cleanup Plan
 Files to Create
 1. README.md (Project Root)
    - What is Spespe
-   - Current status (scraper ✅, web app ⏳)
+   - Current status (spotter ✅, web app ⏳)
    - Quick start guides
    - Link to detailed docs
 2. docs/SCRAPER.md
-   - How the scraper works
+   - How the spotter works
    - Vision model selection (why Gemini)
    - CSV output format
    - Troubleshooting guide
@@ -1239,7 +1239,7 @@ Files to Update
 1. Current README.md
    - Add "What's Next" section
    - Link to product vision
-   - Explain two-part system (scraper + web)
+   - Explain two-part system (spotter + web)
 2. docs/benchmark_archive/WINNER.md
    - Keep as-is (historical reference)
 Files to Delete

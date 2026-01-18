@@ -25,7 +25,7 @@ def setup_logger(name: str = "spespe") -> logging.Logger:
     logger.setLevel(logging.DEBUG)
     
     # Create logs directory
-    logs_dir = Path(__file__).parent.parent / "data" / "logs"
+    logs_dir = Path(__file__).parents[2] / "data" / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     
     # Detailed format with timestamps and function names

@@ -173,7 +173,7 @@ CREATE POLICY "Service role full access"
   USING (true);
 
 -- Add helpful comment
-COMMENT ON TABLE products IS 'Supermarket products scraped from weekly flyers';
+COMMENT ON TABLE products IS 'Supermarket products captured from weekly flyers';
 COMMENT ON COLUMN products.current_price IS 'Current offer price in euros';
 COMMENT ON COLUMN products.discount_percent IS 'Discount percentage (e.g., -31%)';
 COMMENT ON COLUMN products.notes IS 'Italian claims like Coltivato in Italia';

@@ -1,11 +1,11 @@
 """
-Main entry point for the Spespe Spotter pipeline (legacy entry).
+Main entry point for the Spespe Spotter pipeline.
 Orchestrates flyer capture, vision analysis, and data export.
 """
 
+import argparse
 import os
 import sys
-from pathlib import Path
 from typing import Optional
 
 from src.spotter.core.logger import logger
@@ -13,92 +13,89 @@ from src.spotter.core.flyer_browser import capture_flyer_sync
 from src.spotter.core.vision import analyze_screenshots
 from src.spotter.core.extractor import ProductExtractor
 from src.spotter.core.csv_export import export_products
+from src.spotter.config import STORE_CONFIGS
 
 
-def main(
+def run_spotter(
     flyer_url: str,
     openrouter_api_key: str,
     flyer_date: Optional[str] = None,
-    output_dir: Optional[str] = None
+    output_dir: Optional[str] = None,
+    supermarket: str = "Lidl"
 ) -> bool:
     """
-    Main Spotter pipeline (legacy entry).
-    
+    Main Spotter pipeline.
+
     Args:
         flyer_url: URL of the flyer
         openrouter_api_key: OpenRouter API key
         flyer_date: Optional flyer date (YYYY-MM-DD)
         output_dir: Optional output directory
-        
+        supermarket: Supermarket name
+
     Returns:
         True if successful, False otherwise
     """
     logger.info("=" * 80)
-    logger.info("SPESPE - Spotter Pipeline (legacy)")
+    logger.info("SPESPE - Spotter Pipeline")
     logger.info("=" * 80)
-    
+
     try:
-        # Step 1: Browser Automation - Capture Screenshots
-        logger.info("\n[STEP 1] Browser Automation - Capturing Flyer Screenshots")
+        logger.info("\n[STEP 1] Flyer Capture")
         logger.info("-" * 80)
-        
+
         logger.info(f"Target flyer URL: {flyer_url}")
         screenshots = capture_flyer_sync(flyer_url)
-        
+
         if not screenshots:
             logger.error("No screenshots captured. Aborting.")
             return False
-        
+
         logger.info(f"Successfully captured {len(screenshots)} screenshots")
-        
-        # Step 2: Vision Analysis - Extract Product Data
-        logger.info("\n[STEP 2] Vision Analysis - Extracting Products with Gemini 2.5 Flash")
+
+        logger.info("\n[STEP 2] Vision Analysis")
         logger.info("-" * 80)
-        
+
         logger.info(f"Analyzing {len(screenshots)} screenshots...")
         vision_results = analyze_screenshots(openrouter_api_key, screenshots)
-        
-        logger.info(f"Vision analysis complete:")
+
+        logger.info("Vision analysis complete:")
         logger.info(f"  - Total images analyzed: {vision_results['total_images']}")
         logger.info(f"  - Successful analyses: {vision_results['successful_analyses']}")
         logger.info(f"  - Failed analyses: {vision_results['failed_analyses']}")
         logger.info(f"  - Total products extracted: {vision_results['total_products']}")
-        
+
         if vision_results["total_products"] == 0:
             logger.warning("No products found. This might indicate:")
             logger.warning("  1. Flyer not loading correctly")
             logger.warning("  2. Vision model accuracy issue")
             logger.warning("  3. Empty or invalid flyer")
-        
-        # Step 3: Product Extraction - Structure Data
-        logger.info("\n[STEP 3] Product Extraction - Structuring Data")
+
+        logger.info("\n[STEP 3] Product Extraction")
         logger.info("-" * 80)
-        
-        extractor = ProductExtractor(supermarket="Lidl")
+
+        extractor = ProductExtractor(supermarket=supermarket)
         products = extractor.extract_all_products(vision_results, flyer_date)
-        
+
         logger.info(f"Extracted {len(products)} structured product records")
-        
-        # Step 4: Validation - Quality Assurance
-        logger.info("\n[STEP 4] Validation - Quality Assurance")
+
+        logger.info("\n[STEP 4] Validation")
         logger.info("-" * 80)
-        
+
         validation_report = extractor.validate_products(products)
-        
-        logger.info(f"Validation Report:")
+
+        logger.info("Validation Report:")
         logger.info(f"  - Total products: {validation_report['total']}")
         logger.info(f"  - With prices: {validation_report['with_prices']}")
         logger.info(f"  - With discounts: {validation_report['with_discounts']}")
         logger.info(f"  - Avg confidence: {validation_report['avg_confidence']}")
-        
-        # Step 5: CSV Export - Save Results
-        logger.info("\n[STEP 5] CSV Export - Saving Results")
+
+        logger.info("\n[STEP 5] CSV Export")
         logger.info("-" * 80)
-        
+
         csv_path = export_products(products, output_dir if output_dir else "data/output")
         logger.info(f"CSV file exported: {csv_path}")
-        
-        # Summary
+
         logger.info("\n" + "=" * 80)
         logger.info("SPOTTER COMPLETE - SUMMARY")
         logger.info("=" * 80)
@@ -110,9 +107,9 @@ def main(
         logger.info(f"Avg Confidence:      {validation_report['avg_confidence']}")
         logger.info(f"Output CSV:          {csv_path}")
         logger.info("=" * 80)
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"Pipeline failed with error: {e}", exc_info=True)
         logger.error("=" * 80)
@@ -121,25 +118,37 @@ def main(
         return False
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run Spespe Spotter")
+    parser.add_argument("--store", default="lidl", help="Store key (lidl, oasi_tigre)")
+    parser.add_argument("--flyer-url", dest="flyer_url", help="Flyer URL override")
+    parser.add_argument("--flyer-date", dest="flyer_date", help="Flyer date YYYY-MM-DD")
+    parser.add_argument("--output-dir", dest="output_dir", help="Output directory")
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    # Get configuration from environment variables
+    args = parse_args()
+    store_key = args.store.lower()
+    store_config = STORE_CONFIGS.get(store_key, STORE_CONFIGS["lidl"])
+
     api_key = os.getenv("OPENROUTER_API_KEY")
-    flyer_url = os.getenv(
-        "SPOTTER_FLYER_URL",
-        "https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1"
-    )
-    
+    flyer_url = args.flyer_url or os.getenv("SPOTTER_FLYER_URL", store_config["flyer_url"])
+
     if not api_key:
         logger.error("OPENROUTER_API_KEY environment variable not set")
         sys.exit(1)
-    
-    logger.info(f"Configuration loaded from environment variables")
+
+    logger.info("Configuration loaded from environment variables")
+    logger.info(f"Spotter store: {store_key}")
     logger.info(f"Flyer URL: {flyer_url}")
-    
-    # Run pipeline
-    success = main(
+
+    success = run_spotter(
         flyer_url=flyer_url,
-        openrouter_api_key=api_key
+        openrouter_api_key=api_key,
+        flyer_date=args.flyer_date,
+        output_dir=args.output_dir,
+        supermarket=store_config["retailer"]
     )
-    
+
     sys.exit(0 if success else 1)

@@ -20,7 +20,7 @@ class FlyerBrowser:
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
-        self.screenshots_dir = Path(__file__).parent.parent / "data" / "screenshots"
+        self.screenshots_dir = Path(__file__).parents[2] / "data" / "screenshots"
         self.screenshots_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"FlyerBrowser initialized. Screenshots dir: {self.screenshots_dir}")
     
@@ -139,10 +139,12 @@ class FlyerBrowser:
         if not self.page:
             logger.error("Page not initialized")
             return -1
-        
+
+        page = self.page
+
         try:
             # Get all page text for pattern matching
-            page_text = await self.page.inner_text('body')
+            page_text = await page.inner_text('body')
             
             # Method 1: Look for Italian pagination patterns
             import re
@@ -220,22 +222,23 @@ class FlyerBrowser:
             for selector in selectors:
                 try:
                     logger.debug(f"Attempting to detect page count with selector: {selector}")
-                    element = await self.page.query_selector(selector)
-                    if element:
-                        text = await element.text_content()
-                        logger.debug(f"Found element with text: {text}")
+                    if self.page:
+                        element = await self.page.query_selector(selector)
+                        if element:
+                            text = await element.text_content()
+                            logger.debug(f"Found element with text: {text}")
                 except Exception as e:
                     logger.debug(f"Selector {selector} failed: {e}")
                     continue
             
             # Fallback: check for navigation buttons to estimate pages
             logger.info("Attempting to detect page count via pagination controls")
-            next_buttons = await self.page.query_selector_all('button[aria-label*="next"], button[class*="next"]')
-            
-            if next_buttons:
-                # Click through to estimate page count
-                logger.debug(f"Found {len(next_buttons)} navigation buttons")
-                page_count = 1  # Start with page 1
+            if self.page:
+                next_buttons = await self.page.query_selector_all('button[aria-label*="next"], button[class*="next"]')
+                if next_buttons:
+                    # Click through to estimate page count
+                    logger.debug(f"Found {len(next_buttons)} navigation buttons")
+                    page_count = 1  # Start with page 1
             
             logger.info(f"Detected page count: {page_count}")
             return page_count
@@ -257,7 +260,9 @@ class FlyerBrowser:
         if not self.page:
             logger.error("Page not initialized")
             return False
-        
+
+        page = self.page
+
         try:
             logger.info(f"Navigating to flyer page {page_num}")
             
@@ -266,14 +271,14 @@ class FlyerBrowser:
             while current_page < page_num:
                 logger.debug(f"Current page: {current_page}, Target: {page_num}, Clicking next")
                 
-                next_button = await self.page.query_selector('button[aria-label*="next"], button[class*="next"]')
+                next_button = await page.query_selector('button[aria-label*="next"], button[class*="next"]')
                 if not next_button:
                     logger.warning("Could not find next button")
                     break
                 
                 await next_button.click()
                 logger.debug(f"Clicked next button, waiting for page transition")
-                await self.page.wait_for_timeout(1500)
+                await page.wait_for_timeout(1500)
                 
                 current_page += 1
             
@@ -300,10 +305,12 @@ class FlyerBrowser:
         
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"lidl_page_{page_num}_{timestamp}.png"
+            filename = f"spotter_page_{page_num}_{timestamp}.png"
             filepath = self.screenshots_dir / filename
             
             logger.info(f"Taking screenshot for page {page_num}")
+            if not self.page:
+                return None
             await self.page.screenshot(path=str(filepath), full_page=False)
             
             file_size = filepath.stat().st_size
@@ -331,13 +338,16 @@ class FlyerBrowser:
             return await self._capture_via_url_navigation(page_count)
         else:
             # Method B: Button clicking (fallback, when page count unknown)
-            logger.info(f"🔘 Using button clicking method (page count unknown)")
+            logger.info("🔘 Using button clicking method (page count unknown)")
             return await self._capture_via_button_clicks()
     
     async def _capture_via_url_navigation(self, page_count: int) -> List[str]:
         """Capture pages using direct URL navigation (faster)"""
         screenshots = []
-        current_url = self.page.url
+        if not self.page:
+            return screenshots
+        page = self.page
+        current_url = page.url
         
         # Extract base URL
         if '/page/' in current_url:
@@ -352,8 +362,8 @@ class FlyerBrowser:
             # Navigate to page
             url = f"{base_url}{page_num}"
             try:
-                await self.page.goto(url, wait_until="networkidle", timeout=30000)
-                await self.page.wait_for_timeout(1500)  # Let flyer render
+                await page.goto(url, wait_until="networkidle", timeout=30000)
+                await page.wait_for_timeout(1500)  # Let flyer render
                 
                 # Take screenshot
                 screenshot_path = await self.take_screenshot(page_num)
@@ -373,6 +383,10 @@ class FlyerBrowser:
         """Capture pages by clicking 'next' button until exhausted (reliable fallback)"""
         screenshots = []
         page_num = 1
+
+        if not self.page:
+            return screenshots
+        page = self.page
         
         # Track captured page hashes to detect loops
         captured_hashes = set()
@@ -389,13 +403,15 @@ class FlyerBrowser:
             # Capture current page
             logger.info(f"📸 Capturing page {page_num}")
             screenshot_path = await self.take_screenshot(page_num)
-            
+
             if screenshot_path:
                 screenshots.append(screenshot_path)
-                
+
                 # Check for duplicate pages by comparing page content hash
                 try:
-                    page_content = await self.page.content()
+                    if page is None:
+                        break
+                    page_content = await page.content()
                     content_hash = hash(page_content)
                     
                     if content_hash in captured_hashes:
@@ -406,45 +422,50 @@ class FlyerBrowser:
                     captured_hashes.add(content_hash)
                 except Exception as e:
                     logger.debug(f"Could not hash page content: {e}")
+
             else:
                 logger.warning(f"Failed to capture page {page_num}")
                 break
-            
+
             # Find next button (try all selectors)
             next_button = None
             for selector in NEXT_BUTTON_SELECTORS:
-                next_button = await self.page.query_selector(selector)
+                if page is None:
+                    break
+                next_button = await page.query_selector(selector)
                 if next_button:
                     logger.debug(f"Found next button with selector: {selector}")
                     break
-            
+
             if not next_button:
                 logger.info(f"✓ No next button found - captured all {page_num} pages")
                 break
-            
+
             # Check if button is disabled or hidden
             try:
                 is_disabled = await next_button.get_attribute('disabled')
                 is_hidden = await next_button.is_hidden()
-                
+
                 if is_disabled or is_hidden:
                     logger.info(f"✓ Next button disabled - captured all {page_num} pages")
                     break
-                
+
                 # Click next button
                 await next_button.click()
                 logger.debug(f"Clicked next button → page {page_num + 1}")
-                
+
                 # Wait for page transition
-                await self.page.wait_for_timeout(2000)
-                
+                if page is None:
+                    break
+                await page.wait_for_timeout(2000)
+
                 page_num += 1
-                
+
                 # Safety limit to prevent infinite loops
                 if page_num > 50:
                     logger.warning("⚠️  Reached 50 page safety limit")
                     break
-                    
+
             except Exception as e:
                 logger.warning(f"Error clicking next button: {e}")
                 break
