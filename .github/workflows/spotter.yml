@@ -9,6 +9,10 @@ on:
         description: 'Flyer URL (optional)'
         required: false
         default: ''
+      store:
+        description: 'Store key (lidl, oasi_tigre)'
+        required: false
+        default: 'lidl'
 
 permissions:
   contents: write
@@ -40,9 +44,11 @@ jobs:
       - name: Run Spotter
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SPOTTER_FLYER_URL: ${{ github.event.inputs.flyer_url || 'https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1' }}
         run: |
-          python -m src.spotter.run --store lidl
+          python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }}
 
       - name: Import to Supabase
         if: success()

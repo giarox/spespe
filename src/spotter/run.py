@@ -13,6 +13,7 @@ from src.spotter.core.flyer_browser import capture_flyer_sync
 from src.spotter.core.vision import analyze_screenshots
 from src.spotter.core.extractor import ProductExtractor
 from src.spotter.core.csv_export import export_products
+from src.spotter.core.run_registry import record_run, should_skip_run
 from src.spotter.config import STORE_CONFIGS
 
 
@@ -22,7 +23,7 @@ def run_spotter(
     flyer_date: Optional[str] = None,
     output_dir: Optional[str] = None,
     supermarket: str = "Lidl"
-) -> bool:
+) -> tuple[bool, dict]:
     """
     Main Spotter pipeline.
 
@@ -46,10 +47,11 @@ def run_spotter(
 
         logger.info(f"Target flyer URL: {flyer_url}")
         screenshots = capture_flyer_sync(flyer_url, store_config.get("cookie_selectors"))
+        page_count = len(screenshots)
 
         if not screenshots:
             logger.error("No screenshots captured. Aborting.")
-            return False
+            return False, {}
 
         logger.info(f"Successfully captured {len(screenshots)} screenshots")
 
@@ -108,14 +110,18 @@ def run_spotter(
         logger.info(f"Output CSV:          {csv_path}")
         logger.info("=" * 80)
 
-        return True
+        return True, {
+            "page_count": page_count,
+            "screenshot_paths": screenshots,
+            "product_count": validation_report["total"]
+        }
 
     except Exception as e:
         logger.error(f"Pipeline failed with error: {e}", exc_info=True)
         logger.error("=" * 80)
         logger.error("SPOTTER FAILED")
         logger.error("=" * 80)
-        return False
+        return False, {}
 
 
 def parse_args() -> argparse.Namespace:
@@ -135,6 +141,8 @@ if __name__ == "__main__":
 
     api_key = os.getenv("OPENROUTER_API_KEY")
     flyer_url = args.flyer_url or os.getenv("SPOTTER_FLYER_URL", store_config["flyer_url"])
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
 
     if not api_key:
         logger.error("OPENROUTER_API_KEY environment variable not set")
@@ -144,12 +152,28 @@ if __name__ == "__main__":
     logger.info(f"Spotter store: {store_key}")
     logger.info(f"Flyer URL: {flyer_url}")
 
-    success = run_spotter(
+    if supabase_url and supabase_key:
+        if should_skip_run(supabase_url, supabase_key, store_key, flyer_url):
+            logger.info("Spotter run skipped (recent run detected)")
+            sys.exit(0)
+
+    success, run_meta = run_spotter(
         flyer_url=flyer_url,
         openrouter_api_key=api_key,
         flyer_date=args.flyer_date,
         output_dir=args.output_dir,
         supermarket=store_label
     )
+
+    if success and supabase_url and supabase_key:
+        record_run(
+            supabase_url,
+            supabase_key,
+            store_key,
+            flyer_url,
+            page_count=run_meta.get("page_count", 0),
+            screenshot_paths=run_meta.get("screenshot_paths", []),
+            product_count=run_meta.get("product_count", 0)
+        )
 
     sys.exit(0 if success else 1)
