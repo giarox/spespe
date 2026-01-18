@@ -3,6 +3,7 @@ playwright==1.40.0
 
 # API Requests
 requests==2.31.0
+supabase==2.27.2
 
 # Testing
 pytest==7.4.3
