@@ -7,3 +7,12 @@ Oasi products extracted: no (0 products; NoneType.strip in old main)
 Status: failed
 Next action: commit/push changes and re-run Oasi workflow
 ---
+---
+Iteration: 2
+Changes: Updated Supabase skip logic to ignore runs with zero products/screenshots
+Workflow triggered: yes
+Lidl scraped: no
+Oasi products extracted: no (run skipped due to registry)
+Status: failed
+Next action: commit/push and rerun Oasi workflow
+---

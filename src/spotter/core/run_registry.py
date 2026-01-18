@@ -22,7 +22,7 @@ def get_latest_run(
     supabase = create_client(supabase_url, supabase_key)
     response = (
         supabase.table("spotter_runs")
-        .select("id, store_key, flyer_url, created_at, first_screenshot_hash")
+        .select("id, store_key, flyer_url, created_at, first_screenshot_hash, screenshot_count, product_count")
         .eq("store_key", store_key)
         .eq("flyer_url", flyer_url)
         .order("created_at", desc=True)
@@ -48,7 +48,20 @@ def should_skip_run(
     if not isinstance(created_at_value, str):
         return False
     created_at = datetime.fromisoformat(created_at_value.replace("Z", "+00:00"))
-    return datetime.utcnow() - created_at.replace(tzinfo=None) < timedelta(days=max_age_days)
+    is_recent = datetime.utcnow() - created_at.replace(tzinfo=None) < timedelta(days=max_age_days)
+    if not is_recent:
+        return False
+    product_count = latest.get("product_count")
+    screenshot_count = latest.get("screenshot_count")
+    if not isinstance(product_count, (int, float)):
+        product_count = 0
+    if not isinstance(screenshot_count, (int, float)):
+        screenshot_count = 0
+    product_count_value = int(product_count)
+    screenshot_count_value = int(screenshot_count)
+    if product_count_value <= 0 or screenshot_count_value <= 0:
+        return False
+    return True
 
 
 def record_run(
