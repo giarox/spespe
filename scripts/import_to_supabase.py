@@ -55,6 +55,7 @@ def import_csv_to_database(csv_path):
     - Each week is a separate import (preserves history)
     - Unique constraint on (product_name, supermarket, offer_start_date)
     - Duplicates within same week are skipped
+    - Chain/flyer IDs are added when available
     """
     print(f"\n📂 Reading CSV: {csv_path}")
     
@@ -63,6 +64,30 @@ def import_csv_to_database(csv_path):
         return False
     
     products_to_insert = []
+    chain_id = None
+    flyer_id = None
+
+    chain_response = (
+        supabase.table('chains')
+        .select('id')
+        .eq('name', os.getenv('SPOTTER_CHAIN') or 'Lidl')
+        .limit(1)
+        .execute()
+    )
+    if chain_response.data and isinstance(chain_response.data[0], dict):
+        chain_id = chain_response.data[0].get('id')
+
+    if chain_id:
+        flyer_response = (
+            supabase.table('flyers')
+            .select('id')
+            .eq('chain_id', chain_id)
+            .eq('valid_from', os.getenv('SPOTTER_FLYER_DATE'))
+            .limit(1)
+            .execute()
+        )
+        if flyer_response.data and isinstance(flyer_response.data[0], dict):
+            flyer_id = flyer_response.data[0].get('id')
     
     try:
         with open(csv_path, 'r', encoding='utf-8') as f:
@@ -90,6 +115,8 @@ def import_csv_to_database(csv_path):
                     "confidence": float(row["confidence"]) if row.get("confidence") else None,
                     "notes": parse_notes(row.get("notes")),
                     "extraction_quality": parse_csv_value(row.get("extraction_quality")),
+                    "chain_id": chain_id,
+                    "flyer_id": flyer_id,
                 }
                 
                 products_to_insert.append(product)

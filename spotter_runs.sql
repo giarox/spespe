@@ -15,8 +15,11 @@ CREATE INDEX IF NOT EXISTS idx_spotter_runs_created ON spotter_runs(created_at D
 
 ALTER TABLE spotter_runs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Public read spotter runs" ON spotter_runs
+DROP POLICY IF EXISTS "Public read spotter runs" ON spotter_runs;
+DROP POLICY IF EXISTS "Service role write spotter runs" ON spotter_runs;
+
+CREATE POLICY "Public read spotter runs" ON spotter_runs
   FOR SELECT USING (true);
 
-CREATE POLICY IF NOT EXISTS "Service role write spotter runs" ON spotter_runs
+CREATE POLICY "Service role write spotter runs" ON spotter_runs
   FOR ALL USING (true);

@@ -14,6 +14,7 @@ from src.spotter.core.vision import analyze_screenshots
 from src.spotter.core.extractor import ProductExtractor
 from src.spotter.core.csv_export import export_products
 from src.spotter.core.run_registry import record_run, should_skip_run
+from supabase import create_client
 from src.spotter.config import STORE_CONFIGS
 
 
@@ -22,7 +23,9 @@ def run_spotter(
     openrouter_api_key: str,
     flyer_date: Optional[str] = None,
     output_dir: Optional[str] = None,
-    supermarket: str = "Lidl"
+    supermarket: str = "Lidl",
+    chain_id: Optional[str] = None,
+    flyer_id: Optional[str] = None
 ) -> tuple[bool, dict]:
     """
     Main Spotter pipeline.
@@ -78,6 +81,12 @@ def run_spotter(
 
         extractor = ProductExtractor(supermarket=supermarket)
         products = extractor.extract_all_products(vision_results, flyer_date)
+
+        for product in products:
+            if chain_id:
+                product["chain_id"] = chain_id
+            if flyer_id:
+                product["flyer_id"] = flyer_id
 
         logger.info(f"Extracted {len(products)} structured product records")
 
@@ -144,6 +153,36 @@ if __name__ == "__main__":
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
 
+    chain_id = None
+    flyer_id = None
+    if supabase_url and supabase_key:
+        supabase = create_client(supabase_url, supabase_key)
+        chain_id_result = (
+            supabase.table("chains")
+            .select("id")
+            .eq("name", store_label)
+            .limit(1)
+            .execute()
+        )
+        if chain_id_result.data and isinstance(chain_id_result.data[0], dict):
+            chain_id_value = chain_id_result.data[0].get("id")
+            if isinstance(chain_id_value, str):
+                chain_id = chain_id_value
+
+        if chain_id and args.flyer_date:
+            flyer_result = (
+                supabase.table("flyers")
+                .select("id")
+                .eq("chain_id", chain_id)
+                .eq("valid_from", args.flyer_date)
+                .limit(1)
+                .execute()
+            )
+            if flyer_result.data and isinstance(flyer_result.data[0], dict):
+                flyer_id_value = flyer_result.data[0].get("id")
+                if isinstance(flyer_id_value, str):
+                    flyer_id = flyer_id_value
+
     if not api_key:
         logger.error("OPENROUTER_API_KEY environment variable not set")
         sys.exit(1)
@@ -162,7 +201,9 @@ if __name__ == "__main__":
         openrouter_api_key=api_key,
         flyer_date=args.flyer_date,
         output_dir=args.output_dir,
-        supermarket=store_label
+        supermarket=store_label,
+        chain_id=chain_id,
+        flyer_id=flyer_id
     )
 
     if success and supabase_url and supabase_key:
