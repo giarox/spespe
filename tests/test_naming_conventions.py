@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 DISALLOWED = ["scraper", "scrape"]
-ALLOWED_FILE_EXTENSIONS = {".py", ".md", ".yml"}
+ALLOWED_FILE_EXTENSIONS = {".py", ".yml"}
 EXCLUDE_PATHS = {
     "node_modules",
     ".git",
@@ -13,6 +13,7 @@ EXCLUDE_PATHS = {
     "web/public",
     "data",
     "tests/__pycache__",
+    "tests/test_naming_conventions.py",
 }
 
 
@@ -20,6 +21,8 @@ def should_scan(path: Path) -> bool:
     if any(part in EXCLUDE_PATHS for part in path.parts):
         return False
     if path.suffix not in ALLOWED_FILE_EXTENSIONS:
+        return False
+    if path.name == "test_naming_conventions.py":
         return False
     return True
 

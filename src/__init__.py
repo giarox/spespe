@@ -1,5 +1,5 @@
 """
-Spespe - Italian Supermarket Price Scraper
+Spespe - Italian Supermarket Spotter
 Phase 1: Concept Validation
 """
 

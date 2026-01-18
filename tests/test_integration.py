@@ -10,9 +10,9 @@ from unittest.mock import Mock, patch, MagicMock
 
 import pytest
 
-from src.logger import logger
-from src.extractor import ProductExtractor
-from src.csv_export import CSVExporter
+from src.spotter.core.logger import logger
+from src.spotter.core.extractor import ProductExtractor
+from src.spotter.core.csv_export import CSVExporter
 
 
 class TestProductExtraction:
@@ -168,16 +168,14 @@ class TestVisionAnalyzerIntegration:
     
     def test_vision_analyzer_initialization(self):
         """Test VisionAnalyzer can be initialized."""
-        from src.vision import VisionAnalyzer
-        
+        from src.spotter.core.vision import VisionAnalyzer        
         analyzer = VisionAnalyzer("sk-or-v1-test-key-valid-format")
         assert analyzer.model == "google/gemini-2.5-flash"
         assert analyzer.base_url == "https://openrouter.ai/api/v1/chat/completions"
     
     def test_invalid_api_key(self):
         """Test that invalid API keys are rejected."""
-        from src.vision import VisionAnalyzer
-        
+        from src.spotter.core.vision import VisionAnalyzer        
         with pytest.raises(ValueError):
             VisionAnalyzer("invalid-key")
         
@@ -190,8 +188,7 @@ class TestBrowserAutomation:
     
     def test_flyer_browser_initialization(self):
         """Test FlyerBrowser initializes correctly."""
-        from src.browser import FlyerBrowser
-        
+        from src.spotter.core.flyer_browser import FlyerBrowser        
         browser = FlyerBrowser()
         assert browser.browser is None
         assert browser.context is None

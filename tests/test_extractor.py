@@ -4,7 +4,7 @@ Tests product extraction, parsing, and validation logic.
 """
 
 import pytest
-from src.extractor import ProductExtractor
+from src.spotter.core.extractor import ProductExtractor
 
 
 class TestExtractorInitialization:
