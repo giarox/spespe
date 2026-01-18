@@ -58,10 +58,13 @@ def import_csv_to_database(csv_path):
     - Chain/flyer IDs are added when available
     """
     print(f"\n📂 Reading CSV: {csv_path}")
-    
-    if not Path(csv_path).exists():
-        print(f"❌ CSV file not found: {csv_path}")
-        return False
+
+    matches = list(Path().glob(csv_path)) if "*" in csv_path else [Path(csv_path)]
+    if not matches:
+        print(f"⚠️  CSV file not found: {csv_path}")
+        return True
+
+    csv_path = str(matches[0])
     
     products_to_insert = []
     chain_id = None

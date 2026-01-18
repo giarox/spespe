@@ -13,6 +13,10 @@ on:
         description: 'Store key (lidl, oasi_tigre)'
         required: false
         default: 'lidl'
+      flyer_date:
+        description: 'Flyer date YYYY-MM-DD (optional)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -55,16 +59,18 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SPOTTER_CHAIN: ${{ github.event.inputs.store || 'lidl' }}
+          SPOTTER_FLYER_DATE: ${{ github.event.inputs.flyer_date || '' }}
         run: |
           echo "📤 Importing products to Supabase database..."
           pip install supabase psycopg2-binary python-dotenv
-          python scripts/import_to_supabase.py data/output/lidl_products_*.csv
+          python scripts/import_to_supabase.py "data/output/${{ github.event.inputs.store || 'lidl' }}_products_*.csv"
 
       - name: Upload CSV artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lidl-products
+          name: ${{ github.event.inputs.store || 'lidl' }}-products
           path: data/output/*.csv
           retention-days: 30
 
@@ -72,7 +78,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: flyer-screenshots
+          name: flyer-screenshots-${{ github.event.inputs.store || 'lidl' }}
           path: data/screenshots/*.png
           retention-days: 7
 
@@ -80,7 +86,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spotter-logs
+          name: spotter-logs-${{ github.event.inputs.store || 'lidl' }}
           path: data/logs/*.log
           retention-days: 7
 

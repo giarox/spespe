@@ -6,6 +6,7 @@ Orchestrates flyer capture, vision analysis, and data export.
 import argparse
 import os
 import sys
+from datetime import datetime
 from typing import Optional
 
 from src.spotter.core.logger import logger
@@ -25,7 +26,8 @@ def run_spotter(
     output_dir: Optional[str] = None,
     supermarket: str = "Lidl",
     chain_id: Optional[str] = None,
-    flyer_id: Optional[str] = None
+    flyer_id: Optional[str] = None,
+    store_key: str = "lidl"
 ) -> tuple[bool, dict]:
     """
     Main Spotter pipeline.
@@ -104,7 +106,9 @@ def run_spotter(
         logger.info("\n[STEP 5] CSV Export")
         logger.info("-" * 80)
 
-        csv_path = export_products(products, output_dir if output_dir else "data/output")
+        output_dir = output_dir if output_dir else "data/output"
+        filename = f"{store_key}_products_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        csv_path = export_products(products, output_dir, filename)
         logger.info(f"CSV file exported: {csv_path}")
 
         logger.info("\n" + "=" * 80)
@@ -203,7 +207,8 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         supermarket=store_label,
         chain_id=chain_id,
-        flyer_id=flyer_id
+        flyer_id=flyer_id,
+        store_key=store_key
     )
 
     if success and supabase_url and supabase_key:
