@@ -1,0 +1,5 @@
+Oasi Tigre spotter notes:
+- Flyer uses Calameo scroll viewer.
+- Location prompt must be blocked.
+- Page number input selector: .skin-tag.skin-pagenumber input[name='pageNumber']
+- Total pages shown in .skin-tag.skin-pagenumber .total

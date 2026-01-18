@@ -45,7 +45,7 @@ def run_spotter(
         logger.info("-" * 80)
 
         logger.info(f"Target flyer URL: {flyer_url}")
-        screenshots = capture_flyer_sync(flyer_url)
+        screenshots = capture_flyer_sync(flyer_url, store_config.get("cookie_selectors"))
 
         if not screenshots:
             logger.error("No screenshots captured. Aborting.")
@@ -131,6 +131,7 @@ if __name__ == "__main__":
     args = parse_args()
     store_key = args.store.lower()
     store_config = STORE_CONFIGS.get(store_key, STORE_CONFIGS["lidl"])
+    store_label = store_config["retailer"]
 
     api_key = os.getenv("OPENROUTER_API_KEY")
     flyer_url = args.flyer_url or os.getenv("SPOTTER_FLYER_URL", store_config["flyer_url"])
@@ -148,7 +149,7 @@ if __name__ == "__main__":
         openrouter_api_key=api_key,
         flyer_date=args.flyer_date,
         output_dir=args.output_dir,
-        supermarket=store_config["retailer"]
+        supermarket=store_label
     )
 
     sys.exit(0 if success else 1)

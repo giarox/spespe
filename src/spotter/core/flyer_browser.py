@@ -54,7 +54,7 @@ class FlyerBrowser:
             logger.error(f"Failed to launch browser: {e}", exc_info=True)
             raise RuntimeError(f"Browser launch failed: {e}")
     
-    async def navigate_to_flyer(self, url: str) -> bool:
+    async def navigate_to_flyer(self, url: str, cookie_selectors: Optional[List[str]] = None) -> bool:
         """
         Navigate to the flyer URL and wait for it to load.
         
@@ -74,7 +74,7 @@ class FlyerBrowser:
             logger.info("Page navigation completed (networkidle reached)")
             
             # Dismiss cookie banner if present
-            await self._dismiss_cookie_banner()
+            await self._dismiss_cookie_banner(cookie_selectors)
             
             logger.info("Waiting 2 seconds for flyer viewer to fully render")
             await self.page.wait_for_timeout(2000)
@@ -85,48 +85,38 @@ class FlyerBrowser:
             logger.error(f"Navigation failed for {url}: {e}", exc_info=True)
             return False
     
-    async def _dismiss_cookie_banner(self) -> None:
+    async def _dismiss_cookie_banner(self, custom_selectors: Optional[List[str]] = None) -> None:
         """
-        Dismiss OneTrust cookie consent banner.
-        Prioritizes the "Continua senza accettare" (Continue without accepting) button.
-        Falls back to other rejection options if primary button not found.
+        Dismiss cookie consent banner using known selectors.
         """
         if not self.page:
             return
-        
-        # Priority selectors - ordered by preference
-        selectors = [
-            # OneTrust banner - primary reject button (Lidl uses this)
-            ("#onetrust-reject-all-handler", "OneTrust reject all"),
-            
-            # OneTrust banner - alternative selectors
-            ("button[id*='reject-all']", "OneTrust reject pattern"),
-            ("button.ot-button-order-0", "OneTrust first button"),
-            
-            # Text-based fallback (case-insensitive)
-            ("button:has-text('CONTINUA SENZA')", "Continue without accepting"),
-            ("button:has-text('continua senza')", "Continue (lowercase)"),
-            ("button:has-text('rifiuta')", "Reject (Italian)"),
-            
-            # Generic cookie banner selectors
-            ("button[id*='reject']", "Reject button pattern"),
-            ("button[class*='reject']", "Reject class pattern"),
-            (".cookie-consent button:first-child", "Cookie consent first button"),
+
+        selectors = custom_selectors or [
+            "#onetrust-reject-all-handler",
+            "button[id*='reject-all']",
+            "button.ot-button-order-0",
+            "button:has-text('CONTINUA SENZA')",
+            "button:has-text('continua senza')",
+            "button:has-text('rifiuta')",
+            "button[id*='reject']",
+            "button[class*='reject']",
+            ".cookie-consent button:first-child",
         ]
-        
-        for selector, description in selectors:
+
+        for selector in selectors:
             try:
                 element = self.page.locator(selector).first
                 if await element.is_visible(timeout=500):
-                    logger.info(f"Found cookie banner button: {description} - clicking it")
+                    logger.info(f"Found cookie banner button: {selector} - clicking it")
                     await element.click()
                     logger.info("Cookie banner dismissed successfully")
-                    await self.page.wait_for_timeout(500)  # Wait for banner to disappear
+                    await self.page.wait_for_timeout(500)
                     return
             except Exception as e:
-                logger.debug(f"Selector '{description}' failed: {e}")
+                logger.debug(f"Selector '{selector}' failed: {e}")
                 continue
-        
+
         logger.debug("No cookie banner detected or already dismissed")
     
     async def get_flyer_page_count(self) -> int:
@@ -490,7 +480,7 @@ class FlyerBrowser:
             logger.error(f"Error during browser cleanup: {e}", exc_info=True)
 
 
-async def capture_flyer_screenshots(url: str) -> List[str]:
+async def capture_flyer_screenshots(url: str, cookie_selectors: Optional[List[str]] = None) -> List[str]:
     """
     Convenience function to capture all flyer pages.
     
@@ -507,7 +497,7 @@ async def capture_flyer_screenshots(url: str) -> List[str]:
         await browser.launch()
         logger.info(f"Starting flyer capture for: {url}")
         
-        if await browser.navigate_to_flyer(url):
+        if await browser.navigate_to_flyer(url, cookie_selectors):
             page_count = await browser.get_flyer_page_count()
             screenshots = await browser.take_screenshots_all_pages(page_count)
         
@@ -517,7 +507,7 @@ async def capture_flyer_screenshots(url: str) -> List[str]:
     return screenshots
 
 
-def capture_flyer_sync(url: str) -> List[str]:
+def capture_flyer_sync(url: str, cookie_selectors: Optional[List[str]] = None) -> List[str]:
     """
     Synchronous wrapper for flyer screenshot capture.
     
@@ -528,4 +518,4 @@ def capture_flyer_sync(url: str) -> List[str]:
         List of screenshot filepaths
     """
     logger.info("Starting async event loop for browser automation")
-    return asyncio.run(capture_flyer_screenshots(url))
+    return asyncio.run(capture_flyer_screenshots(url, cookie_selectors))
