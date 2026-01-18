@@ -143,6 +143,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--flyer-url", dest="flyer_url", help="Flyer URL override")
     parser.add_argument("--flyer-date", dest="flyer_date", help="Flyer date YYYY-MM-DD")
     parser.add_argument("--output-dir", dest="output_dir", help="Output directory")
+    parser.add_argument("--force", action="store_true", help="Force run even if recent run exists")
     return parser.parse_args()
 
 
@@ -195,9 +196,10 @@ if __name__ == "__main__":
     logger.info(f"Spotter store: {store_key}")
     logger.info(f"Flyer URL: {flyer_url}")
 
-    if supabase_url and supabase_key:
+    if supabase_url and supabase_key and not args.force:
         if should_skip_run(supabase_url, supabase_key, store_key, flyer_url):
             logger.info("Spotter run skipped (recent run detected)")
+            logger.info("No capture performed; use --force to bypass")
             sys.exit(0)
 
     success, run_meta = run_spotter(

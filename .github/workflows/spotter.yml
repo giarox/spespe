@@ -1,8 +1,6 @@
-name: Spespe - Weekly Flyer Spotter
+name: Spotter Test (Oasi)
 
 on:
-  schedule:
-    - cron: '0 9 * * 1'
   workflow_dispatch:
     inputs:
       flyer_url:
@@ -23,7 +21,7 @@ permissions:
 
 jobs:
   spotter:
-    name: Run Spotter (Lidl)
+    name: Spotter Test (${{ github.event.inputs.store || 'lidl' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -52,7 +50,9 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SPOTTER_FLYER_URL: ${{ github.event.inputs.flyer_url || 'https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1' }}
         run: |
-          python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }}
+          echo "Spotter store: ${{ github.event.inputs.store || 'lidl' }}"
+          echo "Spotter flyer URL: ${{ github.event.inputs.flyer_url || 'default' }}"
+          python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }} --force
 
       - name: Import to Supabase
         if: success()
