@@ -16,3 +16,12 @@ Oasi products extracted: no (run skipped due to registry)
 Status: failed
 Next action: commit/push and rerun Oasi workflow
 ---
+---
+Iteration: 3
+Changes: Switch Calameo capture to page input with scroll fallback; prompt clarifies cover pages
+Workflow triggered: yes (forced run)
+Lidl scraped: no
+Oasi products extracted: no (0 products)
+Status: failed
+Next action: commit/push and rerun Oasi workflow
+---

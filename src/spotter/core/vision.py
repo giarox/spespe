@@ -128,6 +128,10 @@ IMPORTANT:
 
 Extract ALL product information from this attached flyer image.
 
+IMPORTANT FOR COVER PAGES:
+- If the page is just a cover (headline, no products), return ONLY the first line and no products.
+- If product cards are visible, list them all.
+
 FIRST LINE - GLOBAL INFO:
 Retailer | Currency | ValidFrom | ValidTo
 

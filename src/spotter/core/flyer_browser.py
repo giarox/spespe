@@ -529,7 +529,7 @@ class FlyerBrowser:
             return False
 
     async def _capture_calameo_scroll(self, page_count: int) -> List[str]:
-        """Capture Calameo scroll viewer by viewport segments."""
+        """Capture Calameo viewer by page input with scroll fallback."""
         screenshots = []
         if not self.page:
             return screenshots
@@ -545,25 +545,28 @@ class FlyerBrowser:
         except Exception:
             scroll_height = 2160
 
-        logger.info(f"Calameo scroll capture: up to {segments} segments")
+        logger.info(f"Calameo page capture: up to {segments} pages")
 
         for idx in range(1, segments + 1):
-            logger.info(f"📸 Capturing Calameo segment {idx}/{segments}")
+            if idx > 1:
+                navigated = await self._navigate_calameo_page(idx)
+                if not navigated:
+                    logger.warning("Calameo page input failed, falling back to scroll")
+                    try:
+                        await page.evaluate("(distance) => window.scrollBy(0, distance)", scroll_height)
+                        await page.wait_for_timeout(1500)
+                    except Exception as e:
+                        logger.warning(f"Scroll failed after page {idx - 1}: {e}")
+                        break
+
+            logger.info(f"📸 Capturing Calameo page {idx}/{segments}")
             screenshot_path = await self.take_screenshot(idx)
             if screenshot_path:
                 screenshots.append(screenshot_path)
             else:
-                logger.warning(f"Failed to capture Calameo segment {idx}")
+                logger.warning(f"Failed to capture Calameo page {idx}")
 
-            if idx < segments:
-                try:
-                    await page.evaluate("(distance) => window.scrollBy(0, distance)", scroll_height)
-                    await page.wait_for_timeout(1500)
-                except Exception as e:
-                    logger.warning(f"Scroll failed after segment {idx}: {e}")
-                    break
-
-        logger.info(f"✓ Captured {len(screenshots)} Calameo segments")
+        logger.info(f"✓ Captured {len(screenshots)} Calameo pages")
         return screenshots
     
     async def close(self) -> None:
