@@ -15,6 +15,10 @@ on:
         description: 'Flyer date YYYY-MM-DD (optional)'
         required: false
         default: ''
+      force_run:
+        description: 'Force run even if recent run exists'
+        required: false
+        default: 'false'
 
 permissions:
   contents: write
@@ -48,11 +52,15 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          SPOTTER_FLYER_URL: ${{ github.event.inputs.flyer_url || 'https://www.lidl.it/l/it/volantini/offerte-valide-dal-19-01-al-25-01-volantino-settimanale-9e63be/view/flyer/page/1' }}
+          SPOTTER_FLYER_URL: ${{ github.event.inputs.flyer_url || '' }}
         run: |
           echo "Spotter store: ${{ github.event.inputs.store || 'lidl' }}"
-          echo "Spotter flyer URL: ${{ github.event.inputs.flyer_url || 'default' }}"
-          python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }} --force
+          echo "Spotter flyer URL: ${{ github.event.inputs.flyer_url || 'auto' }}"
+          if [ "${{ github.event.inputs.force_run }}" = "true" ]; then
+            python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }} --force
+          else
+            python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }}
+          fi
 
       - name: Import to Supabase
         if: success()

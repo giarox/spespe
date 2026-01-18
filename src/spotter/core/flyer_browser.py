@@ -20,7 +20,7 @@ class FlyerBrowser:
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
-        self.screenshots_dir = Path(__file__).parents[2] / "data" / "screenshots"
+        self.screenshots_dir = Path(__file__).parents[3] / "data" / "screenshots"
         self.screenshots_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"FlyerBrowser initialized. Screenshots dir: {self.screenshots_dir}")
     
@@ -133,6 +133,12 @@ class FlyerBrowser:
         page = self.page
 
         try:
+            # Calameo scroll viewer: explicit total page indicator
+            calameo_total = await self._get_calameo_total_pages()
+            if calameo_total:
+                logger.info(f"✓ Detected {calameo_total} pages via Calameo indicator")
+                return calameo_total
+
             # Get all page text for pattern matching
             page_text = await page.inner_text('body')
             
@@ -255,6 +261,9 @@ class FlyerBrowser:
 
         try:
             logger.info(f"Navigating to flyer page {page_num}")
+
+            if "calameo.com" in page.url:
+                return await self._navigate_calameo_page(page_num)
             
             # Try clicking next button multiple times if needed
             current_page = 1
@@ -322,6 +331,10 @@ class FlyerBrowser:
         Returns:
             List of screenshot filepaths
         """
+        if self.page and "calameo.com" in self.page.url:
+            logger.info("🧭 Using Calameo scroll capture")
+            return await self._capture_calameo_scroll(page_count)
+
         if page_count > 1:
             # Method A: URL navigation (faster, when page count is known)
             logger.info(f"📄 Using URL navigation for {page_count} pages")
@@ -461,6 +474,96 @@ class FlyerBrowser:
                 break
         
         logger.info(f"✓ Captured {len(screenshots)} pages via button clicking")
+        return screenshots
+
+    async def _get_calameo_total_pages(self) -> Optional[int]:
+        """Detect Calameo total pages from the viewer UI."""
+        if not self.page:
+            return None
+
+        selectors = [
+            ".skin-tag.skin-pagenumber .total",
+            ".skin-tag.skin-pagenumber .total-pages",
+            ".skin-tag.skin-pagenumber span.total",
+            ".skin-tag.skin-pagenumber span",
+        ]
+
+        for selector in selectors:
+            try:
+                element = await self.page.query_selector(selector)
+                if not element:
+                    continue
+                text = (await element.text_content() or "").strip()
+                if not text:
+                    continue
+                digits = "".join(ch for ch in text if ch.isdigit())
+                if digits:
+                    total = int(digits)
+                    if total > 0:
+                        return total
+            except Exception as e:
+                logger.debug(f"Calameo total selector failed ({selector}): {e}")
+
+        return None
+
+    async def _navigate_calameo_page(self, page_num: int) -> bool:
+        """Navigate Calameo viewer to a specific page via page number input."""
+        if not self.page:
+            return False
+
+        page = self.page
+        selector = ".skin-tag.skin-pagenumber input[name='pageNumber']"
+
+        try:
+            input_el = await page.query_selector(selector)
+            if not input_el:
+                logger.warning("Calameo page input not found")
+                return False
+
+            await input_el.fill(str(page_num))
+            await input_el.press("Enter")
+            await page.wait_for_timeout(1500)
+            return True
+        except Exception as e:
+            logger.warning(f"Calameo page navigation failed: {e}")
+            return False
+
+    async def _capture_calameo_scroll(self, page_count: int) -> List[str]:
+        """Capture Calameo scroll viewer by viewport segments."""
+        screenshots = []
+        if not self.page:
+            return screenshots
+
+        page = self.page
+        max_segments = 3
+        total_pages = page_count if page_count and page_count > 0 else None
+        segments = min(max_segments, total_pages) if total_pages else max_segments
+
+        try:
+            viewport = page.viewport_size or {"height": 2160}
+            scroll_height = viewport.get("height", 2160)
+        except Exception:
+            scroll_height = 2160
+
+        logger.info(f"Calameo scroll capture: up to {segments} segments")
+
+        for idx in range(1, segments + 1):
+            logger.info(f"📸 Capturing Calameo segment {idx}/{segments}")
+            screenshot_path = await self.take_screenshot(idx)
+            if screenshot_path:
+                screenshots.append(screenshot_path)
+            else:
+                logger.warning(f"Failed to capture Calameo segment {idx}")
+
+            if idx < segments:
+                try:
+                    await page.evaluate("(distance) => window.scrollBy(0, distance)", scroll_height)
+                    await page.wait_for_timeout(1500)
+                except Exception as e:
+                    logger.warning(f"Scroll failed after segment {idx}: {e}")
+                    break
+
+        logger.info(f"✓ Captured {len(screenshots)} Calameo segments")
         return screenshots
     
     async def close(self) -> None:

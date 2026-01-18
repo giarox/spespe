@@ -123,6 +123,8 @@ IMPORTANT:
 - This flyer is in ITALIAN language. Do NOT translate. Preserve all Italian text exactly as written.
 - DO NOT make up or hallucinate a flyer. Extract ONLY from the actual image I attached.
 - The image is attached to this message - analyze it directly.
+- The flyer may be a Calameo scroll page; focus on product cards and prices.
+- Ignore viewer UI headers/footers and page chrome.
 
 Extract ALL product information from this attached flyer image.
 

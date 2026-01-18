@@ -130,7 +130,7 @@ class ProductExtractor:
                 "retailer": product_data.get("retailer"),
                 
                 # Product details
-                "product_name": product_data.get("name", "").strip(),
+                "product_name": (product_data.get("name") or "").strip(),
                 "brand": product_data.get("brand"),
                 "description": product_data.get("description"),
                 

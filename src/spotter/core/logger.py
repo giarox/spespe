@@ -24,8 +24,8 @@ def setup_logger(name: str = "spespe") -> logging.Logger:
     # Set to DEBUG for maximum verbosity
     logger.setLevel(logging.DEBUG)
     
-    # Create logs directory
-    logs_dir = Path(__file__).parents[2] / "data" / "logs"
+    # Create logs directory at repo root
+    logs_dir = Path(__file__).parents[3] / "data" / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     
     # Detailed format with timestamps and function names

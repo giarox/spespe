@@ -154,7 +154,7 @@ if __name__ == "__main__":
     store_label = store_config["retailer"]
 
     api_key = os.getenv("OPENROUTER_API_KEY")
-    flyer_url = args.flyer_url or os.getenv("SPOTTER_FLYER_URL", store_config["flyer_url"])
+    flyer_url = args.flyer_url or os.getenv("SPOTTER_FLYER_URL") or store_config["flyer_url"]
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
 

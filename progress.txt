@@ -1,0 +1,9 @@
+---
+Iteration: 1
+Changes: Prepared workflow inputs (force_run, no default URL), auto-resolve store URL, repo-root artifacts, Calameo scroll capture, extractor None guard, prompt tweak
+Workflow triggered: yes (manual runs pre-commit)
+Lidl scraped: yes (because changes not pushed; workflow ran old main)
+Oasi products extracted: no (0 products; NoneType.strip in old main)
+Status: failed
+Next action: commit/push changes and re-run Oasi workflow
+---
