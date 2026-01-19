@@ -23,7 +23,7 @@ const buildQuery = (searchQuery, page) => {
   return supabase
     .from('products')
     .select('*')
-    .order('discount_percent', { ascending: false, nullsFirst: false })
+    .order('discount_percent', { ascending: true, nullsFirst: false })
     .order('id', { ascending: true })
     .range(from, to)
 }

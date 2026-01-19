@@ -1,6 +1,6 @@
-import Image from 'next/image'
 import { Instrument_Serif, Vend_Sans } from "next/font/google";
 import { ShoppingListProvider } from '@/components/ShoppingListContext'
+import AspeLogo from '@/components/AspeLogo'
 import "./globals.css";
 
 const vendSans = Vend_Sans({
@@ -38,7 +38,7 @@ export default function RootLayout({ children }) {
         <header className="px-6 pt-12 pb-4">
           <div className="mx-auto w-full max-w-5xl">
             <div className="flex items-center gap-2">
-              <Image src="/aspe-logo.svg" alt="Aspè" width={32} height={32} priority className="w-8 h-8" />
+              <AspeLogo className="w-8 h-8" />
               <span className="text-2xl font-bold tracking-tight text-[#f16b6b]">Aspè!</span>
             </div>
           </div>

@@ -17,13 +17,14 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 try:
-    result = supabase.table('products').select('product_name, brand').eq('supermarket', 'Eurospin').limit(10).execute()
+    # Sort by discount_percent ASC (numerically smallest first, e.g., -50.0 before -10.0)
+    result = supabase.table('products').select('product_name, discount_percent').not_.is_('discount_percent', 'null').order('discount_percent').limit(10).execute()
     
     if result.data:
-        print(f"Found {len(result.data)} products:")
+        print(f"Top 10 discounts (numerically smallest/best):")
         for row in result.data:
-            print(f"- {row['product_name']} ({row['brand'] or 'N/A'})")
+            print(f"- {row['product_name']}: {row['discount_percent']}")
     else:
-        print("No products found for Eurospin.")
+        print("No products with discounts found.")
 except Exception as e:
     print(f"Error executing query: {e}")

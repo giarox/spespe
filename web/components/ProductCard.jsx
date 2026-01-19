@@ -6,7 +6,7 @@ import { useShoppingList } from '@/components/ShoppingListContext'
 
 const SUPERMARKET_LOGOS = {
   lidl: 'https://upload.wikimedia.org/wikipedia/commons/9/91/Lidl-Logo.svg',
-  eurospin: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Eurospin_logo.svg/1024px-Eurospin_logo.svg.png',
+  eurospin: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Eurospin_logo.svg/2560px-Eurospin_logo.svg.png',
   'oasi tigre': 'https://oasitigre.it/favicon.ico',
   'oasi': 'https://oasitigre.it/favicon.ico',
   'tigre': 'https://oasitigre.it/favicon.ico',
@@ -67,6 +67,12 @@ export default function ProductCard({ product }) {
   const hasDiscount = Boolean(formattedOld || product.discount_percent)
   const alreadyAdded = hasProduct(product.id)
 
+  const displayDiscount = product.discount_percent
+    ? (typeof product.discount_percent === 'number' || !isNaN(product.discount_percent))
+      ? `${Math.round(parseFloat(product.discount_percent))}%`
+      : product.discount_percent
+    : null
+
   const handleAdd = async () => {
     if (alreadyAdded || isAdding) {
       return
@@ -111,9 +117,9 @@ export default function ProductCard({ product }) {
                 <p className="truncate text-sm font-medium text-[#b18474]">{formattedBrand}</p>
               )}
             </div>
-            {product.discount_percent && (
+            {displayDiscount && (
               <span className="shrink-0 rounded-full bg-[#fdf2e9] px-2.5 py-1 text-[11px] font-bold text-[#e67e63]">
-                {product.discount_percent}
+                {displayDiscount}
               </span>
             )}
           </div>

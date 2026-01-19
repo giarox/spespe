@@ -39,6 +39,18 @@ def parse_csv_value(value):
         return None
     return value
 
+def parse_numeric(value):
+    """Parse numeric value from CSV, handling percentages and empty strings"""
+    if value == '' or value is None:
+        return None
+    if isinstance(value, str):
+        # Remove percentage sign if present
+        value = value.replace('%', '')
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
 def parse_notes(notes_str):
     """Convert pipe-separated notes to array"""
     if not notes_str:
@@ -116,10 +128,10 @@ def import_csv_to_database(csv_path):
                     "product_name": parse_csv_value(row.get("product_name")),
                     "brand": parse_csv_value(row.get("brand")),
                     "description": parse_csv_value(row.get("description")),
-                    "current_price": float(row["current_price"]) if row.get("current_price") else None,
-                    "old_price": float(row["old_price"]) if row.get("old_price") else None,
-                    "discount_percent": parse_csv_value(row.get("discount_percent")),
-                    "saving_amount": float(row["saving_amount"]) if row.get("saving_amount") else None,
+                    "current_price": parse_numeric(row.get("current_price")),
+                    "old_price": parse_numeric(row.get("old_price")),
+                    "discount_percent": parse_numeric(row.get("discount_percent")),
+                    "saving_amount": parse_numeric(row.get("saving_amount")),
                     "saving_type": parse_csv_value(row.get("saving_type")),
                     "weight_or_pack": parse_csv_value(row.get("weight_or_pack")),
                     "price_per_unit": parse_csv_value(row.get("price_per_unit")),
@@ -127,7 +139,7 @@ def import_csv_to_database(csv_path):
                     "offer_end_date": parse_csv_value(row.get("offer_end_date")),
                     "global_validity_start": parse_csv_value(row.get("global_validity_start")),
                     "global_validity_end": parse_csv_value(row.get("global_validity_end")),
-                    "confidence": float(row["confidence"]) if row.get("confidence") else None,
+                    "confidence": parse_numeric(row.get("confidence")),
                     "notes": parse_notes(row.get("notes")),
                     "extraction_quality": parse_csv_value(row.get("extraction_quality")),
                     "chain_id": chain_id,
