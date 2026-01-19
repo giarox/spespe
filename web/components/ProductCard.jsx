@@ -6,7 +6,7 @@ import { useShoppingList } from '@/components/ShoppingListContext'
 
 const SUPERMARKET_LOGOS = {
   lidl: 'https://upload.wikimedia.org/wikipedia/commons/9/91/Lidl-Logo.svg',
-  eurospin: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Eurospin_logo.svg/2560px-Eurospin_logo.svg.png',
+  eurospin: 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Eurospin_Logo.svg',
   'oasi tigre': 'https://oasitigre.it/favicon.ico',
   'oasi': 'https://oasitigre.it/favicon.ico',
   'tigre': 'https://oasitigre.it/favicon.ico',
