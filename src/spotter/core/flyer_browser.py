@@ -8,18 +8,29 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
 
-from playwright.async_api import async_playwright, Page, Browser, BrowserContext
+from playwright.async_api import async_playwright, Page, Browser, BrowserContext, Frame
 from src.spotter.core.logger import logger
 
 
 class FlyerBrowser:
     """Handles browser automation for flyer capture."""
     
-    def __init__(self):
+    def __init__(
+        self,
+        next_button_selectors: Optional[List[str]] = None,
+        page_input_selectors: Optional[List[str]] = None,
+        page_indicator_selectors: Optional[List[str]] = None,
+        iframe_selector: Optional[str] = None
+    ):
         """Initialize browser automation."""
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
+        self.frame: Optional[Frame] = None  # For iframe content
+        self.iframe_selector = iframe_selector
+        self.next_button_selectors = next_button_selectors or []
+        self.page_input_selectors = page_input_selectors or []
+        self.page_indicator_selectors = page_indicator_selectors or []
         self.screenshots_dir = Path(__file__).parents[3] / "data" / "screenshots"
         self.screenshots_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"FlyerBrowser initialized. Screenshots dir: {self.screenshots_dir}")
@@ -75,15 +86,44 @@ class FlyerBrowser:
             
             # Dismiss cookie banner if present
             await self._dismiss_cookie_banner(cookie_selectors)
+            await self._dismiss_location_prompt()
             
             logger.info("Waiting 2 seconds for flyer viewer to fully render")
             await self.page.wait_for_timeout(2000)
+            
+            # Switch to iframe if configured
+            if self.iframe_selector:
+                await self._switch_to_iframe()
             
             return True
             
         except Exception as e:
             logger.error(f"Navigation failed for {url}: {e}", exc_info=True)
             return False
+    
+    async def _switch_to_iframe(self) -> bool:
+        """Switch to iframe context for flyer navigation."""
+        if not self.page or not self.iframe_selector:
+            return False
+        
+        try:
+            logger.info(f"Looking for iframe: {self.iframe_selector}")
+            iframe_el = await self.page.query_selector(self.iframe_selector)
+            if iframe_el:
+                self.frame = await iframe_el.content_frame()
+                if self.frame:
+                    await self.frame.wait_for_load_state("domcontentloaded")
+                    await self.page.wait_for_timeout(2000)
+                    logger.info("✓ Switched to iframe context for navigation")
+                    return True
+                else:
+                    logger.warning("Iframe element found but content_frame() returned None")
+            else:
+                logger.warning(f"Iframe not found: {self.iframe_selector}")
+        except Exception as e:
+            logger.warning(f"Failed to switch to iframe: {e}")
+        
+        return False
     
     async def _dismiss_cookie_banner(self, custom_selectors: Optional[List[str]] = None) -> None:
         """
@@ -96,6 +136,10 @@ class FlyerBrowser:
             "#onetrust-reject-all-handler",
             "button[id*='reject-all']",
             "button.ot-button-order-0",
+            "#iubenda-cs-reject-btn",
+            ".iubenda-cs-reject-btn",
+            "button#iubenda-cs-reject-btn",
+            "button.iubenda-cs-reject-btn",
             "button:has-text('CONTINUA SENZA')",
             "button:has-text('continua senza')",
             "button:has-text('rifiuta')",
@@ -118,6 +162,104 @@ class FlyerBrowser:
                 continue
 
         logger.debug("No cookie banner detected or already dismissed")
+
+    async def _dismiss_location_prompt(self) -> None:
+        """
+        Dismiss location prompt banners if present.
+        """
+        if not self.page:
+            return
+
+        selectors = [
+            "button:has-text('Rifiuta')",
+            "button:has-text('Rifiuta tutto')",
+            "button:has-text('Non consentire')",
+            "button:has-text('Nega')",
+            "button:has-text('No')",
+            "button:has-text('Annulla')",
+            "button[aria-label*='rifiuta']",
+            "button[aria-label*='nega']",
+            "button[aria-label*='deny']",
+            "button[aria-label*='block']",
+        ]
+
+        for selector in selectors:
+            try:
+                element = self.page.locator(selector).first
+                if await element.is_visible(timeout=500):
+                    logger.info(f"Found location prompt button: {selector} - clicking it")
+                    await element.click()
+                    logger.info("Location prompt dismissed successfully")
+                    await self.page.wait_for_timeout(500)
+                    return
+            except Exception as e:
+                logger.debug(f"Selector '{selector}' failed: {e}")
+                continue
+
+        logger.debug("No location prompt detected or already dismissed")
+
+    def _get_next_button_selectors(self) -> List[str]:
+        """Return ordered next button selectors including overrides."""
+        default_selectors = [
+            'button.button--navigation[aria-label="Pagina successiva"]',
+            'button[aria-label*="successiva"]',
+            'button[aria-label*="next"]',
+            'button[class*="next"]',
+            'button.button--navigation.button--navigation-lidl'
+        ]
+
+        selectors: List[str] = []
+        for selector in self.next_button_selectors + default_selectors:
+            if selector and selector not in selectors:
+                selectors.append(selector)
+        return selectors
+
+    async def _get_indicator_total_pages(self) -> Optional[int]:
+        """Detect total pages from configured indicator selectors."""
+        if not self.page or not self.page_indicator_selectors:
+            return None
+
+        for selector in self.page_indicator_selectors:
+            try:
+                element = await self.page.query_selector(selector)
+                if not element:
+                    continue
+                text = (await element.text_content() or "").strip()
+                if not text:
+                    text = (await element.get_attribute("value") or "").strip()
+                if not text:
+                    text = (await element.get_attribute("data-total-pages") or "").strip()
+                if not text:
+                    continue
+                import re
+                numbers = re.findall(r"\d+", text)
+                if numbers:
+                    total = int(numbers[-1])
+                    if total > 0:
+                        return total
+            except Exception as e:
+                logger.debug(f"Indicator selector failed ({selector}): {e}")
+
+        return None
+
+    async def _navigate_via_page_input(self, page_num: int) -> bool:
+        """Navigate using configured page input selectors."""
+        if not self.page or not self.page_input_selectors:
+            return False
+
+        for selector in self.page_input_selectors:
+            try:
+                input_el = await self.page.query_selector(selector)
+                if not input_el:
+                    continue
+                await input_el.fill(str(page_num))
+                await input_el.press("Enter")
+                await self.page.wait_for_timeout(1500)
+                return True
+            except Exception as e:
+                logger.debug(f"Page input selector failed ({selector}): {e}")
+
+        return False
     
     async def get_flyer_page_count(self) -> int:
         """
@@ -138,6 +280,11 @@ class FlyerBrowser:
             if calameo_total:
                 logger.info(f"✓ Detected {calameo_total} pages via Calameo indicator")
                 return calameo_total
+
+            indicator_total = await self._get_indicator_total_pages()
+            if indicator_total:
+                logger.info(f"✓ Detected {indicator_total} pages via configured indicator")
+                return indicator_total
 
             # Get all page text for pattern matching
             page_text = await page.inner_text('body')
@@ -190,7 +337,7 @@ class FlyerBrowser:
                         # Return -1 to signal button clicking method
                         logger.info("Multiple pages detected via URL probing - will use button clicking")
                         return -1
-                except:
+                except Exception:
                     # Page 2 doesn't exist, only 1 page
                     await self.page.goto(f"{base_url}1", wait_until="networkidle")
                     logger.info("Only 1 page exists (URL probe failed)")
@@ -203,45 +350,6 @@ class FlyerBrowser:
         except Exception as e:
             logger.error(f"Page count detection failed: {e}", exc_info=True)
             return -1
-        
-        try:
-            # Try common page count indicators
-            selectors = [
-                'div[class*="page-count"]',
-                'span[class*="page"]',
-                '[class*="total-pages"]',
-                'div[data-total-pages]',
-            ]
-            
-            page_count = 1
-            
-            for selector in selectors:
-                try:
-                    logger.debug(f"Attempting to detect page count with selector: {selector}")
-                    if self.page:
-                        element = await self.page.query_selector(selector)
-                        if element:
-                            text = await element.text_content()
-                            logger.debug(f"Found element with text: {text}")
-                except Exception as e:
-                    logger.debug(f"Selector {selector} failed: {e}")
-                    continue
-            
-            # Fallback: check for navigation buttons to estimate pages
-            logger.info("Attempting to detect page count via pagination controls")
-            if self.page:
-                next_buttons = await self.page.query_selector_all('button[aria-label*="next"], button[class*="next"]')
-                if next_buttons:
-                    # Click through to estimate page count
-                    logger.debug(f"Found {len(next_buttons)} navigation buttons")
-                    page_count = 1  # Start with page 1
-            
-            logger.info(f"Detected page count: {page_count}")
-            return page_count
-            
-        except Exception as e:
-            logger.error(f"Page count detection failed: {e}", exc_info=True)
-            return 1
     
     async def navigate_to_page(self, page_num: int) -> bool:
         """
@@ -264,13 +372,22 @@ class FlyerBrowser:
 
             if "calameo.com" in page.url:
                 return await self._navigate_calameo_page(page_num)
+
+            input_nav = await self._navigate_via_page_input(page_num)
+            if input_nav:
+                return True
             
             # Try clicking next button multiple times if needed
             current_page = 1
+            selectors = self._get_next_button_selectors()
             while current_page < page_num:
                 logger.debug(f"Current page: {current_page}, Target: {page_num}, Clicking next")
                 
-                next_button = await page.query_selector('button[aria-label*="next"], button[class*="next"]')
+                next_button = None
+                for selector in selectors:
+                    next_button = await page.query_selector(selector)
+                    if next_button:
+                        break
                 if not next_button:
                     logger.warning("Could not find next button")
                     break
@@ -321,7 +438,7 @@ class FlyerBrowser:
             logger.error(f"Failed to take screenshot for page {page_num}: {e}", exc_info=True)
             return None
     
-    async def take_screenshots_all_pages(self, page_count: int) -> List[str]:
+    async def take_screenshots_all_pages(self, page_count: int, limit: Optional[int] = None) -> List[str]:
         """
         Take screenshots of all pages in the flyer using hybrid approach.
         
@@ -333,16 +450,17 @@ class FlyerBrowser:
         """
         if self.page and "calameo.com" in self.page.url:
             logger.info("🧭 Using Calameo scroll capture")
-            return await self._capture_calameo_scroll(page_count)
+            return await self._capture_calameo_scroll(page_count, limit=limit)
 
         if page_count > 1:
             # Method A: URL navigation (faster, when page count is known)
-            logger.info(f"📄 Using URL navigation for {page_count} pages")
-            return await self._capture_via_url_navigation(page_count)
+            actual_count = min(page_count, limit) if limit else page_count
+            logger.info(f"📄 Using URL navigation for {actual_count} pages")
+            return await self._capture_via_url_navigation(actual_count)
         else:
             # Method B: Button clicking (fallback, when page count unknown)
             logger.info("🔘 Using button clicking method (page count unknown)")
-            return await self._capture_via_button_clicks()
+            return await self._capture_via_button_clicks(limit)
     
     async def _capture_via_url_navigation(self, page_count: int) -> List[str]:
         """Capture pages using direct URL navigation (faster)"""
@@ -357,7 +475,7 @@ class FlyerBrowser:
             base_url = current_url.rsplit('/page/', 1)[0] + '/page/'
         else:
             logger.warning("URL doesn't contain /page/ - falling back to button clicking")
-            return await self._capture_via_button_clicks()
+            return await self._capture_via_button_clicks(limit=page_count)
         
         for page_num in range(1, page_count + 1):
             logger.info(f"📸 Capturing page {page_num}/{page_count}")
@@ -382,28 +500,29 @@ class FlyerBrowser:
         logger.info(f"✓ Captured {len(screenshots)}/{page_count} pages via URL navigation")
         return screenshots
     
-    async def _capture_via_button_clicks(self) -> List[str]:
-        """Capture pages by clicking 'next' button until exhausted (reliable fallback)"""
+    async def _capture_via_button_clicks(self, limit: Optional[int] = None) -> List[str]:
+        """Capture pages by clicking 'next' button until exhausted (reliable fallback)."""
         screenshots = []
         page_num = 1
 
         if not self.page:
             return screenshots
-        page = self.page
+        
+        # Use iframe context if available, otherwise main page
+        nav_context = self.frame if self.frame else self.page
+        page = self.page  # Always use main page for screenshots
         
         # Track captured page hashes to detect loops
         captured_hashes = set()
-        
-        # Next button selectors (from Lidl HTML)
-        NEXT_BUTTON_SELECTORS = [
-            'button.button--navigation[aria-label="Pagina successiva"]',  # Specific Lidl
-            'button[aria-label*="successiva"]',  # Generic "next" in Italian
-            'button[aria-label*="next"]',         # English fallback
-            'button.button--navigation.button--navigation-lidl'  # Class-based
-        ]
+
+        selectors = self._get_next_button_selectors()
         
         while True:
-            # Capture current page
+            if limit and page_num > limit:
+                logger.info(f"Reached capture limit ({limit} pages)")
+                break
+
+            # Capture current page (always from main page for full view)
             logger.info(f"📸 Capturing page {page_num}")
             screenshot_path = await self.take_screenshot(page_num)
 
@@ -412,9 +531,9 @@ class FlyerBrowser:
 
                 # Check for duplicate pages by comparing page content hash
                 try:
-                    if page is None:
+                    if nav_context is None:
                         break
-                    page_content = await page.content()
+                    page_content = await nav_context.content()
                     content_hash = hash(page_content)
                     
                     if content_hash in captured_hashes:
@@ -430,15 +549,18 @@ class FlyerBrowser:
                 logger.warning(f"Failed to capture page {page_num}")
                 break
 
-            # Find next button (try all selectors)
+            # Find next button in navigation context (iframe or main page)
             next_button = None
-            for selector in NEXT_BUTTON_SELECTORS:
-                if page is None:
+            for selector in selectors:
+                if nav_context is None:
                     break
-                next_button = await page.query_selector(selector)
-                if next_button:
-                    logger.debug(f"Found next button with selector: {selector}")
-                    break
+                try:
+                    next_button = await nav_context.query_selector(selector)
+                    if next_button:
+                        logger.debug(f"Found next button with selector: {selector}")
+                        break
+                except Exception as e:
+                    logger.debug(f"Selector {selector} failed: {e}")
 
             if not next_button:
                 logger.info(f"✓ No next button found - captured all {page_num} pages")
@@ -528,16 +650,17 @@ class FlyerBrowser:
             logger.warning(f"Calameo page navigation failed: {e}")
             return False
 
-    async def _capture_calameo_scroll(self, page_count: int) -> List[str]:
+    async def _capture_calameo_scroll(self, page_count: int, limit: Optional[int] = None) -> List[str]:
         """Capture Calameo viewer by page input with scroll fallback."""
         screenshots = []
         if not self.page:
             return screenshots
 
         page = self.page
-        max_segments = 3
         total_pages = page_count if page_count and page_count > 0 else None
-        segments = min(max_segments, total_pages) if total_pages else max_segments
+        segments = total_pages or 50
+        if limit:
+            segments = min(segments, limit)
 
         try:
             viewport = page.viewport_size or {"height": 2160}
@@ -586,7 +709,15 @@ class FlyerBrowser:
             logger.error(f"Error during browser cleanup: {e}", exc_info=True)
 
 
-async def capture_flyer_screenshots(url: str, cookie_selectors: Optional[List[str]] = None) -> List[str]:
+async def capture_flyer_screenshots(
+    url: str,
+    cookie_selectors: Optional[List[str]] = None,
+    next_button_selectors: Optional[List[str]] = None,
+    page_input_selectors: Optional[List[str]] = None,
+    page_indicator_selectors: Optional[List[str]] = None,
+    page_limit: Optional[int] = None,
+    iframe_selector: Optional[str] = None
+) -> List[str]:
     """
     Convenience function to capture all flyer pages.
     
@@ -596,7 +727,12 @@ async def capture_flyer_screenshots(url: str, cookie_selectors: Optional[List[st
     Returns:
         List of screenshot filepaths
     """
-    browser = FlyerBrowser()
+    browser = FlyerBrowser(
+        next_button_selectors=next_button_selectors,
+        page_input_selectors=page_input_selectors,
+        page_indicator_selectors=page_indicator_selectors,
+        iframe_selector=iframe_selector
+    )
     screenshots = []
     
     try:
@@ -605,7 +741,7 @@ async def capture_flyer_screenshots(url: str, cookie_selectors: Optional[List[st
         
         if await browser.navigate_to_flyer(url, cookie_selectors):
             page_count = await browser.get_flyer_page_count()
-            screenshots = await browser.take_screenshots_all_pages(page_count)
+            screenshots = await browser.take_screenshots_all_pages(page_count, limit=page_limit)
         
     finally:
         await browser.close()
@@ -613,7 +749,15 @@ async def capture_flyer_screenshots(url: str, cookie_selectors: Optional[List[st
     return screenshots
 
 
-def capture_flyer_sync(url: str, cookie_selectors: Optional[List[str]] = None) -> List[str]:
+def capture_flyer_sync(
+    url: str,
+    cookie_selectors: Optional[List[str]] = None,
+    next_button_selectors: Optional[List[str]] = None,
+    page_input_selectors: Optional[List[str]] = None,
+    page_indicator_selectors: Optional[List[str]] = None,
+    page_limit: Optional[int] = None,
+    iframe_selector: Optional[str] = None
+) -> List[str]:
     """
     Synchronous wrapper for flyer screenshot capture.
     
@@ -624,4 +768,14 @@ def capture_flyer_sync(url: str, cookie_selectors: Optional[List[str]] = None) -
         List of screenshot filepaths
     """
     logger.info("Starting async event loop for browser automation")
-    return asyncio.run(capture_flyer_screenshots(url, cookie_selectors))
+    return asyncio.run(
+        capture_flyer_screenshots(
+            url,
+            cookie_selectors=cookie_selectors,
+            next_button_selectors=next_button_selectors,
+            page_input_selectors=page_input_selectors,
+            page_indicator_selectors=page_indicator_selectors,
+            page_limit=page_limit,
+            iframe_selector=iframe_selector
+        )
+    )

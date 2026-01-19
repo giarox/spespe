@@ -8,9 +8,13 @@ on:
         required: false
         default: ''
       store:
-        description: 'Store key (lidl, oasi_tigre)'
+        description: 'Store key (lidl, oasi_tigre, eurospin)'
         required: false
         default: 'lidl'
+      page_limit:
+        description: 'Limit flyer pages captured (0 for full)'
+        required: false
+        default: '3'
       flyer_date:
         description: 'Flyer date YYYY-MM-DD (optional)'
         required: false
@@ -56,11 +60,14 @@ jobs:
         run: |
           echo "Spotter store: ${{ github.event.inputs.store || 'lidl' }}"
           echo "Spotter flyer URL: ${{ github.event.inputs.flyer_url || 'auto' }}"
+          EXTRA_ARGS=""
           if [ "${{ github.event.inputs.force_run }}" = "true" ]; then
-            python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }} --force
-          else
-            python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }}
+            EXTRA_ARGS="$EXTRA_ARGS --force"
           fi
+          if [ -n "${{ github.event.inputs.page_limit }}" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --page-limit ${{ github.event.inputs.page_limit }}"
+          fi
+          python -m src.spotter.run --store ${{ github.event.inputs.store || 'lidl' }} $EXTRA_ARGS
 
       - name: Import to Supabase
         if: success()

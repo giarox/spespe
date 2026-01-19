@@ -8,9 +8,12 @@ OASI_TIGRE_CONFIG = {
         "button:has-text('Rifiuta')",
         "button:has-text('Continua senza')"
     ],
-    "next_button_selectors": [],
+    "page_input_selectors": [
+        ".skin-tag.skin-pagenumber input[name='pageNumber']"
+    ],
     "page_indicator_selectors": [
-        ".skin-tag.skin-pagenumber input[name='pageNumber']",
         ".skin-tag.skin-pagenumber .total"
-    ]
+    ],
+    "page_limit": None,
+    "page_limit_full": None
 }

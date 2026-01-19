@@ -27,7 +27,9 @@ def run_spotter(
     supermarket: str = "Lidl",
     chain_id: Optional[str] = None,
     flyer_id: Optional[str] = None,
-    store_key: str = "lidl"
+    store_key: str = "lidl",
+    store_config: Optional[dict] = None,
+    page_limit: Optional[int] = None
 ) -> tuple[bool, dict]:
     """
     Main Spotter pipeline.
@@ -51,7 +53,27 @@ def run_spotter(
         logger.info("-" * 80)
 
         logger.info(f"Target flyer URL: {flyer_url}")
-        screenshots = capture_flyer_sync(flyer_url, store_config.get("cookie_selectors"))
+        store_config = store_config or {}
+        configured_limit = store_config.get("page_limit")
+        configured_full_limit = store_config.get("page_limit_full")
+        if page_limit is None:
+            resolved_page_limit = configured_limit
+        else:
+            resolved_page_limit = configured_full_limit if page_limit == 0 else page_limit
+
+        if resolved_page_limit is None:
+            logger.info("Page capture set to full run")
+        else:
+            logger.info(f"Page capture limit: {resolved_page_limit}")
+        screenshots = capture_flyer_sync(
+            flyer_url,
+            cookie_selectors=store_config.get("cookie_selectors"),
+            next_button_selectors=store_config.get("next_button_selectors"),
+            page_input_selectors=store_config.get("page_input_selectors"),
+            page_indicator_selectors=store_config.get("page_indicator_selectors"),
+            page_limit=resolved_page_limit,
+            iframe_selector=store_config.get("iframe_selector")
+        )
         page_count = len(screenshots)
 
         if not screenshots:
@@ -116,6 +138,7 @@ def run_spotter(
         logger.info("=" * 80)
         logger.info(f"Flyer URL:           {flyer_url}")
         logger.info(f"Screenshots:         {len(screenshots)}")
+        logger.info(f"Page Limit:          {resolved_page_limit if resolved_page_limit is not None else 'full'}")
         logger.info(f"Products Extracted:  {validation_report['total']}")
         logger.info(f"With Prices:         {validation_report['with_prices']}")
         logger.info(f"With Discounts:      {validation_report['with_discounts']}")
@@ -126,7 +149,8 @@ def run_spotter(
         return True, {
             "page_count": page_count,
             "screenshot_paths": screenshots,
-            "product_count": validation_report["total"]
+            "product_count": validation_report["total"],
+            "page_limit": resolved_page_limit
         }
 
     except Exception as e:
@@ -139,10 +163,11 @@ def run_spotter(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Spespe Spotter")
-    parser.add_argument("--store", default="lidl", help="Store key (lidl, oasi_tigre)")
+    parser.add_argument("--store", default="lidl", help="Store key (lidl, oasi_tigre, eurospin)")
     parser.add_argument("--flyer-url", dest="flyer_url", help="Flyer URL override")
     parser.add_argument("--flyer-date", dest="flyer_date", help="Flyer date YYYY-MM-DD")
     parser.add_argument("--output-dir", dest="output_dir", help="Output directory")
+    parser.add_argument("--page-limit", dest="page_limit", type=int, help="Limit flyer pages captured (0 for full)")
     parser.add_argument("--force", action="store_true", help="Force run even if recent run exists")
     return parser.parse_args()
 
@@ -210,7 +235,9 @@ if __name__ == "__main__":
         supermarket=store_label,
         chain_id=chain_id,
         flyer_id=flyer_id,
-        store_key=store_key
+        store_key=store_key,
+        store_config=store_config,
+        page_limit=args.page_limit
     )
 
     if success and supabase_url and supabase_key:
