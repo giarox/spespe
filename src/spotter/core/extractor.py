@@ -43,21 +43,16 @@ class ProductExtractor:
         try:
             # Remove currency symbols and whitespace
             cleaned = str(price_str).replace("€", "").replace(",", ".").strip()
-            price = float(cleaned)
+            # If there's multiple numbers or something, try to just get the first decimal
+            match = re.search(r'(\d+\.\d+)', cleaned)
+            if match:
+                price = float(match.group(1))
+            else:
+                price = float(cleaned)
             logger.debug(f"Parsed price: {price_str} -> {price}")
             return price
-        except (ValueError, AttributeError) as e:
-            logger.debug(f"Failed to parse price: {price_str} - {e}")
-            return None
-        
-        try:
-            # Remove currency symbols and whitespace
-            cleaned = price_str.replace("€", "").replace(",", ".").strip()
-            price = float(cleaned)
-            logger.debug(f"Parsed price: {price_str} -> {price}")
-            return price
-        except ValueError:
-            logger.debug(f"Failed to parse price: {price_str}")
+        except (ValueError, AttributeError, IndexError) as e:
+            logger.warning(f"Failed to parse price: '{price_str}' - {e}")
             return None
     
     def _parse_discount(self, discount_str: Optional[str]) -> Optional[float]:
@@ -236,13 +231,13 @@ class ProductExtractor:
         confidence_scores = []
         
         for product in products:
-            if product.get("discounted_price"):
+            if product.get("current_price"):
                 report["with_prices"] += 1
             
-            if product.get("discount_percentage"):
+            if product.get("discount_percent"):
                 report["with_discounts"] += 1
             
-            confidence = product.get("confidence_score", 0.0)
+            confidence = product.get("confidence", 0.0)
             confidence_scores.append(confidence)
             
             # Check for potential issues

@@ -123,7 +123,10 @@ def import_csv_to_database(csv_path):
                     "flyer_id": flyer_id,
                 }
                 
-                products_to_insert.append(product)
+                if product.get("current_price") is not None:
+                    products_to_insert.append(product)
+                else:
+                    print(f"  ⚠️  Skipping row {row_num}: '{product.get('product_name')}' due to missing current_price")
                 
                 if row_num % 100 == 0:
                     print(f"  📖 Parsed {row_num} rows...")

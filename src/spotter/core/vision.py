@@ -125,6 +125,9 @@ IMPORTANT:
 - The image is attached to this message - analyze it directly.
 - The flyer may be a Calameo scroll page; focus on product cards and prices.
 - Ignore viewer UI headers/footers and page chrome.
+- PRICE EXTRACTION IS CRITICAL: Look for large, bold numbers. In Italian flyers (like Eurospin), prices are often the most prominent element on a product card, sometimes in red or bold black.
+- Ensure "CurrentPrice" is ALWAYS captured if visible. Use "null" ONLY if absolutely no price is found.
+- Format prices as numbers only: "1.99" (not "1,99 €").
 
 Extract ALL product information from this attached flyer image.
 
