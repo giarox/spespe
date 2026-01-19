@@ -70,10 +70,11 @@ def import_csv_to_database(csv_path):
     chain_id = None
     flyer_id = None
 
+    chain_label = os.getenv('SPOTTER_CHAIN') or 'Lidl'
     chain_response = (
         supabase.table('chains')
         .select('id')
-        .eq('name', os.getenv('SPOTTER_CHAIN') or 'Lidl')
+        .ilike('name', chain_label)
         .limit(1)
         .execute()
     )
@@ -129,11 +130,16 @@ def import_csv_to_database(csv_path):
         
         print(f"✅ Parsed {len(products_to_insert)} products from CSV")
         
-        # Deduplicate products based on unique key (product_name, supermarket, offer_start_date)
+        # Deduplicate products based on unique key (product_name, chain_id, flyer_id, offer_start_date)
         # Keep the product with highest confidence if duplicates exist
         seen = {}
         for product in products_to_insert:
-            key = (product['product_name'], product['supermarket'], product['offer_start_date'])
+            key = (
+                product['product_name'],
+                product['chain_id'],
+                product['flyer_id'],
+                product['offer_start_date']
+            )
             if key not in seen:
                 seen[key] = product
             else:
@@ -166,7 +172,7 @@ def import_csv_to_database(csv_path):
             # Use upsert to handle duplicates (updates existing based on unique constraint)
             result = supabase.table('products').upsert(
                 batch,
-                on_conflict='product_name,supermarket,offer_start_date'
+                on_conflict='product_name,chain_id,flyer_id,offer_start_date'
             ).execute()
             
             total_inserted += len(batch)

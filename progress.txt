@@ -25,3 +25,21 @@ Oasi products extracted: no (0 products)
 Status: failed
 Next action: commit/push and rerun Oasi workflow
 ---
+---
+Iteration: 4
+Changes: Re-run after page input capture
+Workflow triggered: yes (forced run)
+Lidl scraped: no
+Oasi products extracted: yes (17 products)
+Status: success
+Next action: verify output and conclude
+---
+---
+Iteration: 5
+Changes: Cleaned misattributed Oasi products, updated import upsert/dedupe keys, reworked search_products for chain dedupe
+Workflow triggered: no
+Lidl scraped: no
+Oasi products extracted: yes (17 products)
+Status: success
+Next action: commit/push and confirm UI behavior
+---
