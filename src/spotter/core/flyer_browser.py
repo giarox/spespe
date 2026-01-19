@@ -425,9 +425,16 @@ class FlyerBrowser:
             filepath = self.screenshots_dir / filename
             
             logger.info(f"Taking screenshot for page {page_num}")
-            if not self.page:
-                return None
-            await self.page.screenshot(path=str(filepath), full_page=False)
+            
+            # Use iframe for screenshot if available
+            screenshot_target = self.page
+            if self.iframe_selector:
+                iframe_el = await self.page.query_selector(self.iframe_selector)
+                if iframe_el:
+                    screenshot_target = iframe_el
+                    logger.info("📸 Capturing screenshot from iframe element")
+
+            await screenshot_target.screenshot(path=str(filepath))
             
             file_size = filepath.stat().st_size
             logger.info(f"Screenshot saved: {filepath} ({file_size} bytes)")
