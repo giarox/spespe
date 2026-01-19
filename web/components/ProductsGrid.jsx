@@ -124,7 +124,7 @@ export default function ProductsGrid({ searchQuery }) {
         clearTimeout(searchTimeoutRef.current)
       }
     }
-  }, [loadInitial])
+  }, [normalizedQuery])
 
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || loadingMore || loading) {
