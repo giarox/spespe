@@ -81,8 +81,8 @@ class FlyerBrowser:
         
         try:
             logger.info(f"Navigating to flyer URL: {url}")
-            await self.page.goto(url, wait_until="networkidle", timeout=30000)
-            logger.info("Page navigation completed (networkidle reached)")
+            await self.page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            logger.info("Page navigation completed (domcontentloaded reached)")
             
             # Dismiss cookie banner if present
             await self._dismiss_cookie_banner(cookie_selectors)
