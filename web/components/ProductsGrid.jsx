@@ -164,31 +164,108 @@ export default function ProductsGrid({ searchQuery }) {
     )
   }
 
+  // Split products into exact matches and related results
+  const splitProducts = useMemo(() => {
+    if (!normalizedQuery || products.length === 0) {
+      return { exact: [], related: [] }
+    }
+
+    const queryLower = normalizedQuery.toLowerCase()
+    const exact = []
+    const related = []
+
+    products.forEach((product) => {
+      const nameLower = (product.product_name || '').toLowerCase()
+      if (nameLower.startsWith(queryLower)) {
+        exact.push(product)
+      } else {
+        related.push(product)
+      }
+    })
+
+    return { exact, related }
+  }, [products, normalizedQuery])
+
+  const hasExactMatches = splitProducts.exact.length > 0
+  const hasRelatedResults = splitProducts.related.length > 0
+
   return (
     <div className="space-y-8">
-      <p className="font-serif text-3xl italic text-[#6d4b42]">
-        Le migliori offerte della settimana
-      </p>
-      {showFuzzyHint && (
-        <p className="text-xs text-[#f16b6b]">Mostro risultati simili per la tua ricerca</p>
-      )}
-      {products.length > 0 ? (
-        <div
-          className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
-            isTransitioning ? 'opacity-70 blur-[1px]' : 'opacity-100'
-          }`}
-        >
-          {products.map((product) => (
-            <div key={product.id} className="transition-transform duration-300 ease-out">
-              <ProductCard product={product} />
+      {normalizedQuery ? (
+        <>
+          {/* Exact Matches Section */}
+          {hasExactMatches && (
+            <div className="space-y-4">
+              <p className="font-serif text-2xl italic text-[#6d4b42]">
+                Risultati ricerca
+              </p>
+              <div
+                className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
+                  isTransitioning ? 'opacity-70 blur-[1px]' : 'opacity-100'
+                }`}
+              >
+                {splitProducts.exact.map((product) => (
+                  <div key={product.id} className="transition-transform duration-300 ease-out">
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+
+          {/* Related Results Section */}
+          {hasRelatedResults && (
+            <div className="space-y-4">
+              <p className="font-serif text-2xl italic text-[#6d4b42]">
+                Risultati correlati
+              </p>
+              <div
+                className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
+                  isTransitioning ? 'opacity-70 blur-[1px]' : 'opacity-100'
+                }`}
+              >
+                {splitProducts.related.map((product) => (
+                  <div key={product.id} className="transition-transform duration-300 ease-out">
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* No Results */}
+          {!hasExactMatches && !hasRelatedResults && (
+            <div className="text-center py-12">
+              <p className="text-xl text-[#b18474]">Nessun risultato</p>
+              <p className="text-sm text-[#caa79b] mt-2">Prova con un termine diverso</p>
+            </div>
+          )}
+        </>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-xl text-[#b18474]">Nessun risultato</p>
-          <p className="text-sm text-[#caa79b] mt-2">Prova con un termine diverso</p>
-        </div>
+        <>
+          {/* Default Section */}
+          <p className="font-serif text-3xl italic text-[#6d4b42]">
+            Le migliori offerte della settimana
+          </p>
+          {products.length > 0 ? (
+            <div
+              className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
+                isTransitioning ? 'opacity-70 blur-[1px]' : 'opacity-100'
+              }`}
+            >
+              {products.map((product) => (
+                <div key={product.id} className="transition-transform duration-300 ease-out">
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-xl text-[#b18474]">Nessun risultato</p>
+              <p className="text-sm text-[#caa79b] mt-2">Prova con un termine diverso</p>
+            </div>
+          )}
+        </>
       )}
 
       {loadingMore && (
