@@ -7,9 +7,9 @@ import { useShoppingList } from '@/components/ShoppingListContext'
 const SUPERMARKET_LOGOS = {
   lidl: 'https://upload.wikimedia.org/wikipedia/commons/9/91/Lidl-Logo.svg',
   eurospin: 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Eurospin_Logo.svg',
-  'oasi tigre': 'https://oasitigre.it/favicon.ico',
-  'oasi': 'https://oasitigre.it/favicon.ico',
-  'tigre': 'https://oasitigre.it/favicon.ico',
+  'oasi tigre': 'https://www.oasitigre.it/etc.clientlibs/oasitigre/clientlibs-ot/clientlib-site/resources/images/logo-oasitigre.svg',
+  'oasi': 'https://www.oasitigre.it/etc.clientlibs/oasitigre/clientlibs-ot/clientlib-site/resources/images/logo-oasitigre.svg',
+  'tigre': 'https://www.oasitigre.it/etc.clientlibs/oasitigre/clientlibs-ot/clientlib-site/resources/images/logo-oasitigre.svg',
 }
 
 const formatText = (text) => {
