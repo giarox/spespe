@@ -148,7 +148,7 @@ export default function ProductCard({ product }) {
         </div>
 
         <Button
-          aria-label={alreadyAdded ? 'Aggiunto' : 'Aggiungi'}
+          aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
           className={`h-12 w-12 shrink-0 rounded-full transition-all duration-300 ${
             alreadyAdded
               ? 'bg-[#f6f1ee] text-[#caa79b]'
