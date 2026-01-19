@@ -43,6 +43,27 @@ export default function ProductsGrid({ searchQuery }) {
 
   const normalizedQuery = useMemo(() => normalizeQuery(searchQuery), [searchQuery])
 
+  const splitProducts = useMemo(() => {
+    if (!normalizedQuery || products.length === 0) {
+      return { exact: [], related: [] }
+    }
+
+    const queryLower = normalizedQuery.toLowerCase()
+    const exact = []
+    const related = []
+
+    products.forEach((product) => {
+      const nameLower = (product.product_name || '').toLowerCase()
+      if (nameLower.startsWith(queryLower)) {
+        exact.push(product)
+      } else {
+        related.push(product)
+      }
+    })
+
+    return { exact, related }
+  }, [products, normalizedQuery])
+
   const loadInitial = useCallback(async () => {
     const requestId = activeRequestRef.current + 1
     activeRequestRef.current = requestId
@@ -163,28 +184,6 @@ export default function ProductsGrid({ searchQuery }) {
       </div>
     )
   }
-
-  // Split products into exact matches and related results
-  const splitProducts = useMemo(() => {
-    if (!normalizedQuery || products.length === 0) {
-      return { exact: [], related: [] }
-    }
-
-    const queryLower = normalizedQuery.toLowerCase()
-    const exact = []
-    const related = []
-
-    products.forEach((product) => {
-      const nameLower = (product.product_name || '').toLowerCase()
-      if (nameLower.startsWith(queryLower)) {
-        exact.push(product)
-      } else {
-        related.push(product)
-      }
-    })
-
-    return { exact, related }
-  }, [products, normalizedQuery])
 
   const hasExactMatches = splitProducts.exact.length > 0
   const hasRelatedResults = splitProducts.related.length > 0
