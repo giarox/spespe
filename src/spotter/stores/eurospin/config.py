@@ -16,6 +16,10 @@ EUROSPIN_CONFIG = {
     "next_button_selectors": [
         "button:has-text('arrow_forward_ios')",
         "button:has-text('chevron_right')",
+        "button[aria-label='Pagina successiva']",
+        "button[aria-label='Avanti']",
+        "button.next-button",
+        ".next-button",
     ],
     "page_input_selectors": [],
     "page_indicator_selectors": [],
