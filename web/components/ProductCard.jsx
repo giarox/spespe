@@ -4,6 +4,23 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useShoppingList } from '@/components/ShoppingListContext'
 
+const SUPERMARKET_LOGOS = {
+  lidl: 'https://upload.wikimedia.org/wikipedia/commons/9/91/Lidl-Logo.svg',
+  eurospin: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Eurospin_logo.svg/1024px-Eurospin_logo.svg.png',
+  'oasi tigre': 'https://oasitigre.it/favicon.ico',
+  'oasi': 'https://oasitigre.it/favicon.ico',
+  'tigre': 'https://oasitigre.it/favicon.ico',
+}
+
+const formatText = (text) => {
+  if (!text) return ''
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
 const parseNumber = (value) => {
   if (value === null || value === undefined) {
     return null
@@ -31,6 +48,11 @@ export default function ProductCard({ product }) {
   const { addItem, hasProduct } = useShoppingList()
   const [isAdding, setIsAdding] = useState(false)
 
+  const formattedName = formatText(product.product_name)
+  const formattedBrand = formatText(product.brand)
+  const formattedSupermarket = formatText(product.supermarket)
+  const logoUrl = SUPERMARKET_LOGOS[product.supermarket?.toLowerCase()]
+
   const currentPrice = parseNumber(product.current_price)
   const rawOldPrice = parseNumber(product.old_price)
   const explicitSaving = parseNumber(product.saving_amount)
@@ -55,58 +77,85 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <Card className={`overflow-hidden rounded-[32px] border border-[#f1d6c6] bg-white shadow-[0_18px_40px_rgba(154,115,96,0.12)] ${isAdding ? 'scale-[1.01]' : ''}`}>
-      <CardContent className="flex items-center gap-4 px-6 py-6">
-        <div className="h-20 w-24 rounded-2xl bg-[#fbe8d8] shadow-inner" />
-        <div className="flex-1">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-[#6d4b42]">
-                {product.product_name}
+    <Card className={`overflow-hidden rounded-[32px] bg-white transition-all duration-300 ${isAdding ? 'scale-[1.02]' : ''}`}>
+      <CardContent className="flex items-center gap-5 px-6 py-6">
+        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-[#fdf2e9]">
+          {product.image_url ? (
+            <img
+              src={product.image_url}
+              alt={formattedName}
+              className="h-full w-full object-contain p-2"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-3xl opacity-20">
+              📦
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 mb-1">
+                {logoUrl && (
+                  <img src={logoUrl} alt="" className="h-3.5 w-3.5 object-contain" />
+                )}
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#b18474]">
+                  {formattedSupermarket}
+                </p>
+              </div>
+              <h3 className="truncate text-lg font-bold text-[#4a3728] leading-tight">
+                {formattedName}
               </h3>
-              {product.brand && (
-                <p className="text-sm text-[#b18474]">{product.brand}</p>
+              {formattedBrand && (
+                <p className="truncate text-sm font-medium text-[#b18474]">{formattedBrand}</p>
               )}
             </div>
             {product.discount_percent && (
-              <span className="rounded-full bg-[#f7b960] px-3 py-1 text-xs font-semibold text-[#6d4b42]">
+              <span className="shrink-0 rounded-full bg-[#fdf2e9] px-2.5 py-1 text-[11px] font-bold text-[#e67e63]">
                 {product.discount_percent}
               </span>
             )}
           </div>
-          <div className="mt-4 flex items-baseline gap-4">
-            <span className="text-3xl font-semibold text-[#e67e63]">
+
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-[#e67e63]">
               {formattedCurrent}
             </span>
             {formattedOld && (
-              <span className="text-lg text-[#caa79b] line-through">
+              <span className="text-sm text-[#caa79b] line-through decoration-1">
                 {formattedOld}
               </span>
             )}
           </div>
-        <div className="mt-2 flex flex-wrap gap-3 text-xs text-[#b18474]">
-          {product.weight_or_pack && <span>{product.weight_or_pack}</span>}
-          {product.price_per_unit && <span>{product.price_per_unit}</span>}
-        </div>
-        {product.notes && product.notes.length > 0 && (
-          <div className="mt-2 text-xs italic text-[#d39486]">
-            {product.notes[0]}
+
+          <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-medium text-[#caa79b]">
+            {product.weight_or_pack && <span>{product.weight_or_pack}</span>}
+            {product.price_per_unit && <span>{product.price_per_unit}</span>}
           </div>
-        )}
-      </div>
-      <Button
-        aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-        className={`h-14 w-14 rounded-full bg-[#f16b6b] text-white shadow-[0_12px_24px_rgba(241,107,107,0.35)] ${
-          alreadyAdded ? 'opacity-60' : 'hover:scale-105'
-        }`}
-        size="icon"
-        onClick={handleAdd}
-        disabled={alreadyAdded}
-      >
-        <span className="text-xl">🛒</span>
-      </Button>
-    </CardContent>
-  </Card>
+
+          {product.notes && product.notes.length > 0 && (
+            <div className="mt-2 text-[10px] italic text-[#d39486] line-clamp-1">
+              {product.notes[0]}
+            </div>
+          )}
+        </div>
+
+        <Button
+          aria-label={alreadyAdded ? 'Aggiunto' : 'Aggiungi'}
+          className={`h-12 w-12 shrink-0 rounded-full transition-all duration-300 ${
+            alreadyAdded
+              ? 'bg-[#f6f1ee] text-[#caa79b]'
+              : 'bg-[#f16b6b] text-white shadow-[0_8px_16px_rgba(241,107,107,0.25)] hover:bg-[#e85a5a] active:scale-95'
+          }`}
+          size="icon"
+          onClick={handleAdd}
+          disabled={alreadyAdded}
+        >
+          <span className="text-xl">{alreadyAdded ? '✓' : '🛒'}</span>
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 

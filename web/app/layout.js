@@ -35,24 +35,21 @@ export default function RootLayout({ children }) {
     <html lang="it">
       <body className={`${vendSans.variable} ${instrumentSerif.variable} antialiased bg-[#f6f1ee] text-[#6d4b42]`}>
         <ShoppingListProvider>
-        <header className="px-6 pt-8">
-          <div className="mx-auto w-full max-w-5xl rounded-[32px] bg-[#fbe8d8] px-6 py-8 shadow-[0_20px_60px_rgba(154,115,96,0.2)]">
-            <div className="flex items-center gap-4">
-              <Image src="/aspe-logo.svg" alt="Aspè" width={48} height={48} priority />
-              <div>
-                <p className="text-xl font-semibold text-[#f16b6b]">Aspè!</p>
-                <p className="text-xs text-[#b18474]">Offerte da supermercati italiani</p>
-              </div>
+        <header className="px-6 pt-12 pb-4">
+          <div className="mx-auto w-full max-w-5xl">
+            <div className="flex items-center gap-2">
+              <Image src="/aspe-logo.svg" alt="Aspè" width={32} height={32} priority className="w-8 h-8" />
+              <span className="text-2xl font-bold tracking-tight text-[#f16b6b]">Aspè!</span>
             </div>
           </div>
         </header>
         
-        <main className="min-h-screen px-6 pb-16 pt-6">
+        <main className="min-h-[70vh] px-6 pb-16 pt-8">
           {children}
         </main>
         
-        <footer className="px-6 pb-8">
-          <div className="mx-auto w-full max-w-5xl rounded-[32px] bg-[#fbe8d8] px-6 py-6 text-center text-sm text-[#b18474]">
+        <footer className="px-6 pb-12">
+          <div className="mx-auto w-full max-w-5xl border-t border-[#e5deda] pt-8 text-sm text-[#b18474]">
             Aggiornato ogni lunedì alle 9:00 · Dati estratti automaticamente dai volantini digitali
           </div>
         </footer>

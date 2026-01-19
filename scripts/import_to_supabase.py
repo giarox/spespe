@@ -78,8 +78,19 @@ def import_csv_to_database(csv_path):
         .limit(1)
         .execute()
     )
-    if chain_response.data and isinstance(chain_response.data[0], dict):
-        chain_id = chain_response.data[0].get('id')
+    if not chain_id:
+        print(f"  ⚠️  Chain '{chain_label}' not found, creating it...")
+        try:
+            insert_response = (
+                supabase.table('chains')
+                .insert({"name": chain_label})
+                .execute()
+            )
+            if insert_response.data:
+                chain_id = insert_response.data[0].get('id')
+                print(f"  ✅ Created chain '{chain_label}' with ID: {chain_id}")
+        except Exception as e:
+            print(f"  ❌ Failed to create chain: {e}")
 
     if chain_id:
         flyer_response = (

@@ -20,8 +20,27 @@ class ProductExtractor:
         Args:
             supermarket: Name of supermarket
         """
-        self.supermarket = supermarket
-        logger.info(f"ProductExtractor initialized for: {supermarket}")
+        self.supermarket = self._to_title_case(supermarket)
+        logger.info(f"ProductExtractor initialized for: {self.supermarket}")
+    
+    def _to_title_case(self, text: Optional[str]) -> Optional[str]:
+        """
+        Convert ALL CAPS strings to Title Case, while preserving mixed-case.
+        
+        Args:
+            text: Input text string
+            
+        Returns:
+            Title Cased string or original if mixed case
+        """
+        if not text or not isinstance(text, str):
+            return text
+            
+        # If it's all uppercase and has letters, convert to Title Case
+        if text.isupper():
+            return text.title()
+            
+        return text
     
     def _parse_price(self, price_str: Optional[str]) -> Optional[float]:
         """
@@ -122,11 +141,11 @@ class ProductExtractor:
             record = {
                 # Supermarket info
                 "supermarket": self.supermarket,
-                "retailer": product_data.get("retailer"),
+                "retailer": self._to_title_case(product_data.get("retailer")),
                 
                 # Product details
-                "product_name": (product_data.get("name") or "").strip(),
-                "brand": product_data.get("brand"),
+                "product_name": self._to_title_case((product_data.get("name") or "").strip()),
+                "brand": self._to_title_case(product_data.get("brand")),
                 "description": product_data.get("description"),
                 
                 # Pricing

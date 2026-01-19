@@ -4,12 +4,12 @@ import { Input } from '@/components/ui/input'
 
 export default function SearchBar({ value, onChange }) {
   return (
-    <div className="w-full">
+    <div className="w-full max-w-2xl">
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Cerca prodotto o marca..."
-        className="h-14 rounded-full border-transparent bg-white/90 px-6 text-lg text-[#6d4b42] placeholder:text-[#d3b4a8] shadow-[0_12px_30px_rgba(154,115,96,0.12)]"
+        className="h-16 rounded-full border-none bg-white px-8 text-xl text-[#6d4b42] placeholder:text-[#caa79b] shadow-[0_8px_30px_rgba(0,0,0,0.04)] ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
       />
     </div>
   )

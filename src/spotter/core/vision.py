@@ -141,9 +141,9 @@ Retailer | Currency | ValidFrom | ValidTo
 THEN LIST ALL PRODUCTS (one per line):
 Brand | ProductName | Description | CurrentPrice | OldPrice | Discount | WeightPack | PricePerUnit | OfferStart | OfferEnd | Notes
 
-RULES:
-- Keep ALL text in Italian exactly as shown (e.g., "Coltivato in Italia", "confezione")
-- Write "null" if field is missing or not visible
+    RULES:
+    - Keep ALL text in Italian. Use **Sentence case** or **Title case** for product names and brands (e.g., "Mele golden" or "Barilla"), avoiding ALL CAPS even if they appear that way in the flyer.
+    - Write "null" if field is missing or not visible
 - Prices: numbers only (1.39, 0.89)
 - Discount: with % sign (-31%)
 - Dates: extract exactly as shown (e.g., "19/01", "da giovedì 22/01")

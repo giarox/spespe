@@ -202,9 +202,9 @@ class TestProductValidation:
         extractor = ProductExtractor()
         
         products = [
-            {"product_name": "P1", "discounted_price": 5.99},
-            {"product_name": "P2", "discounted_price": None},
-            {"product_name": "P3", "discounted_price": 10.00},
+            {"product_name": "P1", "current_price": 5.99},
+            {"product_name": "P2", "current_price": None},
+            {"product_name": "P3", "current_price": 10.00},
         ]
         
         report = extractor.validate_products(products)
@@ -217,9 +217,9 @@ class TestProductValidation:
         extractor = ProductExtractor()
         
         products = [
-            {"product_name": "P1", "discount_percentage": 20.0},
-            {"product_name": "P2", "discount_percentage": None},
-            {"product_name": "P3", "discount_percentage": 15.0},
+            {"product_name": "P1", "discount_percent": "-20%"},
+            {"product_name": "P2", "discount_percent": None},
+            {"product_name": "P3", "discount_percent": "-15%"},
         ]
         
         report = extractor.validate_products(products)
@@ -231,15 +231,53 @@ class TestProductValidation:
         extractor = ProductExtractor()
         
         products = [
-            {"product_name": "P1", "confidence_score": 0.90},
-            {"product_name": "P2", "confidence_score": 0.80},
-            {"product_name": "P3", "confidence_score": 0.95},
+            {"product_name": "P1", "confidence": 0.90},
+            {"product_name": "P2", "confidence": 0.80},
+            {"product_name": "P3", "confidence": 0.95},
         ]
         
         report = extractor.validate_products(products)
         
         # Average should be around 0.883
         assert 0.88 < report["avg_confidence"] < 0.90
+
+
+class TestTextNormalization:
+    """Test text normalization and title casing logic."""
+    
+    def test_to_title_case_all_caps(self):
+        """Test normalization of ALL CAPS strings."""
+        extractor = ProductExtractor()
+        
+        assert extractor._to_title_case("MELE GOLDEN") == "Mele Golden"
+        assert extractor._to_title_case("PASTA BARILLA") == "Pasta Barilla"
+        assert extractor._to_title_case("LIDL") == "Lidl"
+    
+    def test_to_title_case_mixed_case(self):
+        """Test that mixed case strings are preserved."""
+        extractor = ProductExtractor()
+        
+        assert extractor._to_title_case("Nutella") == "Nutella"
+        assert extractor._to_title_case("Coca-Cola") == "Coca-Cola"
+        assert extractor._to_title_case("iPhone") == "iPhone"
+    
+    def test_normalization_applied_in_record(self):
+        """Test normalization is applied during record extraction."""
+        extractor = ProductExtractor("EUROSPIN")
+        assert extractor.supermarket == "Eurospin"
+        
+        product_data = {
+            "name": "MELE GOLDEN",
+            "brand": "VAL VENOSTA",
+            "retailer": "LIDL",
+            "current_price": "1.99"
+        }
+        
+        record = extractor.extract_product_record(product_data, page_num=1)
+        
+        assert record["product_name"] == "Mele Golden"
+        assert record["brand"] == "Val Venosta"
+        assert record["retailer"] == "Lidl"
 
 
 class TestEdgeCases:

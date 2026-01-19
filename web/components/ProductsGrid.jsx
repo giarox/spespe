@@ -165,8 +165,8 @@ export default function ProductsGrid({ searchQuery }) {
   }
 
   return (
-    <div className="space-y-4">
-      <p className="font-serif text-2xl italic text-[#7a564c]">
+    <div className="space-y-8">
+      <p className="font-serif text-3xl italic text-[#6d4b42]">
         Le migliori offerte della settimana
       </p>
       {showFuzzyHint && (

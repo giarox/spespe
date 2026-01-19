@@ -8,12 +8,12 @@ export default async function Home({ searchParams }) {
   const title = searchQuery ? `Risultati per “${searchQuery}”` : 'Aspè! Controlla le offerte prima di fare la spesa!'
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-10">
-      <div className="rounded-[32px] bg-[#fbe8d8] px-6 py-10 shadow-[0_20px_60px_rgba(154,115,96,0.16)]">
-        <h1 className="font-serif text-3xl md:text-4xl italic text-[#6d4b42]">
+    <div className="mx-auto w-full max-w-5xl space-y-16">
+      <div>
+        <h1 className="font-serif text-5xl md:text-6xl italic text-[#6d4b42] leading-[1.15] max-w-3xl">
           {title}
         </h1>
-        <div className="mt-6">
+        <div className="mt-12">
           <SearchExperience initialQuery={searchQuery} />
         </div>
       </div>
