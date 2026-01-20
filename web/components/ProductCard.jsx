@@ -82,10 +82,10 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <Card className="w-full rounded-[24px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+    <Card className="w-full rounded-[24px] bg-white border border-solid border-[rgba(255,255,255,0.08)] shadow-[inset_0px_2px_4px_0px_rgba(255,255,255,0.12)]">
       <CardContent className="flex py-4 px-3">
         <div className="flex-shrink-0">
-          <div className="w-[48px] h-[48px] rounded-[12px] flex items-center justify-center">
+          <div className="w-[32px] h-[32px] rounded-[6px] flex items-center justify-center" style={{ background: logoUrl ? 'transparent' : 'linear-gradient(180deg, #FFF000 0%, #FFF000 33%, #E60A14 33%, #E60A14 66%, #0050AA 66%, #0050AA 100%)' }}>
             {logoUrl ? (
               <img src={logoUrl} alt="" className="h-full w-full object-contain p-[4px]" />
             ) : (
@@ -99,18 +99,18 @@ export default function ProductCard({ product }) {
         <div className="flex min-w-0 flex-1 flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <h3 className="text-[15px] font-semibold text-gray-900 leading-tight truncate">
+              <h3 className="font-['Vend_Sans:SemiBold',sans-serif] text-[18px] leading-[26px] text-[#561517] font-semibold truncate">
                 {formattedName}
               </h3>
               {formattedBrand && (
-                <p className="text-[12px] text-gray-500 mt-[2px]">
+                <p className="font-['Vend_Sans:Regular',sans-serif] text-[16px] leading-[20px] text-[rgba(113,57,59,0.72)] font-normal mt-[2px]">
                   {formattedBrand}
                 </p>
               )}
             </div>
             {displayDiscount && (
-              <div className="ml-2 flex-shrink-0 bg-[#f6f1ee] text-[#71393B] text-[11px] font-semibold px-[8px] py-[4px] rounded-[8px]">
-                <span className="uppercase tracking-wider">
+              <div className="ml-2 flex-shrink-0 bg-[#e36e4b] text-white text-[14px] font-bold px-[8px] py-[4px] rounded-[8px] border border-solid border-[rgba(255,255,255,0.08)] shadow-[inset_0px_2px_4px_0px_rgba(255,255,255,0.12)]">
+                <span className="uppercase tracking-wider font-['Vend_Sans:Bold',sans-serif]">
                   {displayDiscount}
                 </span>
               </div>
@@ -119,32 +119,32 @@ export default function ProductCard({ product }) {
           <div className="flex items-center justify-between mt-[8px]">
             <div className="flex flex-col">
               <div className="flex items-baseline gap-[6px]">
-                <span className="text-[16px] font-bold text-gray-900">
+                <span className="font-['Vend_Sans:SemiBold',sans-serif] text-[24px] leading-[32px] text-[#e36e4b] font-semibold">
                   {formattedCurrent}
                 </span>
                 {formattedOld && (
-                  <span className="text-[12px] text-gray-400 line-through">
+                  <span className="font-['Vend_Sans:Regular',sans-serif] text-[16px] text-[rgba(113,57,59,0.4)] font-normal line-through decoration-solid">
                     {formattedOld}
                   </span>
                 )}
               </div>
               {metaLine && (
-                <p className="text-[11px] text-gray-500 mt-[2px]">
+                <p className="font-['Vend_Sans:Regular',sans-serif] text-[12px] leading-[12px] text-[rgba(113,57,59,0.64)] font-normal mt-[2px]">
                   {metaLine}
                 </p>
               )}
               {Array.isArray(product.notes) && product.notes.length > 0 && (
-                <p className="text-[10px] text-gray-400 mt-[2px] italic">
+                <p className="font-['Vend_Sans:Regular',sans-serif] text-[12px] leading-[12px] text-[rgba(113,57,59,0.64)] font-normal mt-[2px] italic">
                   {product.notes.join(', ')}
                 </p>
               )}
             </div>
             <Button
               aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-              className={`flex-shrink-0 h-[36px] px-[12px] text-[13px] font-semibold rounded-[10px] ${
+              className={`flex-shrink-0 h-[48px] w-[48px] font-['Vend_Sans:Bold',sans-serif] text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] ${
                 alreadyAdded
                   ? 'bg-[#f6f1ee] text-[#caa79b]'
-                  : 'bg-[#FCBE69] text-[#71393B] hover:bg-[#FCBE69]/90'
+                  : 'bg-[#f7ae4b] text-[#561517] hover:bg-[#f7ae4b]/90'
               }`}
               onClick={handleAdd}
               disabled={alreadyAdded}
