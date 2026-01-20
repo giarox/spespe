@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useShoppingList } from '@/components/ShoppingListContext'
 
@@ -50,7 +49,6 @@ export default function ProductCard({ product }) {
 
   const formattedName = formatText(product.product_name)
   const formattedBrand = formatText(product.brand)
-  const formattedSupermarket = formatText(product.supermarket)
   const logoUrl = SUPERMARKET_LOGOS[product.supermarket?.toLowerCase()]
 
   const currentPrice = parseNumber(product.current_price)
@@ -60,11 +58,8 @@ export default function ProductCard({ product }) {
   const displayOldPrice = rawOldPrice && currentPrice && rawOldPrice > currentPrice
     ? rawOldPrice
     : rawOldPrice || derivedOldPrice
-  const savingValue = explicitSaving || (displayOldPrice && currentPrice ? displayOldPrice - currentPrice : null)
   const formattedCurrent = formatCurrency(currentPrice) ?? '—'
   const formattedOld = displayOldPrice && currentPrice && displayOldPrice > currentPrice ? formatCurrency(displayOldPrice) : null
-  const formattedSaving = savingValue ? formatCurrency(savingValue) : null
-  const hasDiscount = Boolean(formattedOld || product.discount_percent)
   const alreadyAdded = hasProduct(product.id)
 
   const displayDiscount = product.discount_percent
@@ -83,83 +78,61 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <Card className={`overflow-hidden rounded-[32px] bg-white transition-all duration-300 ${isAdding ? 'scale-[1.02]' : ''}`}>
-      <CardContent className="flex items-center gap-5 px-6 py-6">
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-[#fdf2e9]">
-          {product.image_url ? (
-            <img
-              src={product.image_url}
-              alt={formattedName}
-              className="h-full w-full object-contain p-2"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-3xl opacity-20">
-              📦
-            </div>
+    <Card className={`overflow-hidden rounded-[20px] bg-white transition-all duration-300 ${isAdding ? 'scale-[1.02]' : ''}`}>
+      <CardContent className="flex h-[110px] items-start gap-[12px] px-[16px] py-[12px]">
+        <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center">
+          {logoUrl && (
+            <img src={logoUrl} alt="" className="h-full w-full object-contain" />
           )}
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-start justify-between gap-[12px]">
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 mb-1">
-                {logoUrl && (
-                  <img src={logoUrl} alt="" className="h-3.5 w-3.5 object-contain" />
-                )}
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#b18474]">
-                  {formattedSupermarket}
-                </p>
-              </div>
-              <h3 className="truncate text-lg font-bold text-[#4a3728] leading-tight">
+              <h3 className="truncate text-[14px] font-semibold leading-tight text-[#4a3728]">
                 {formattedName}
               </h3>
               {formattedBrand && (
-                <p className="truncate text-sm font-medium text-[#b18474]">{formattedBrand}</p>
+                <p className="truncate text-[12px] font-medium text-[#b18474]">{formattedBrand}</p>
               )}
             </div>
             {displayDiscount && (
-              <span className="shrink-0 rounded-full bg-[#fdf2e9] px-2.5 py-1 text-[11px] font-bold text-[#e67e63]">
+              <span className="shrink-0 rounded-full bg-[#fff4d6] px-[8px] text-[11px] font-semibold leading-[20px] text-[#b4690e]">
                 {displayDiscount}
               </span>
             )}
           </div>
 
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-[#e67e63]">
-              {formattedCurrent}
-            </span>
-            {formattedOld && (
-              <span className="text-sm text-[#caa79b] line-through decoration-1">
-                {formattedOld}
+          <div className="mt-[6px] flex items-center justify-between gap-[12px]">
+            <div className="flex items-baseline gap-[8px]">
+              <span className="text-[18px] font-extrabold text-[#d6731d]">
+                {formattedCurrent}
               </span>
-            )}
+              {formattedOld && (
+                <span className="text-[12px] text-[#caa79b] line-through decoration-1">
+                  {formattedOld}
+                </span>
+              )}
+            </div>
+            <Button
+              aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
+              className={`h-[32px] shrink-0 rounded-full px-[14px] text-[12px] font-semibold transition-all duration-300 ${
+                alreadyAdded
+                  ? 'bg-[#f6f1ee] text-[#caa79b]'
+                  : 'bg-[#f6c144] text-[#4a3728] shadow-[0_8px_16px_rgba(246,193,68,0.35)] hover:bg-[#efb534] active:scale-95'
+              }`}
+              onClick={handleAdd}
+              disabled={alreadyAdded}
+            >
+              {alreadyAdded ? '✓' : 'Aggiungi'}
+            </Button>
           </div>
 
-          <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-medium text-[#caa79b]">
+          <div className="mt-auto flex flex-wrap gap-[8px] text-[11px] font-medium text-[#caa79b]">
             {product.weight_or_pack && <span>{product.weight_or_pack}</span>}
             {product.price_per_unit && <span>{product.price_per_unit}</span>}
           </div>
-
-          {product.notes && product.notes.length > 0 && (
-            <div className="mt-2 text-[10px] italic text-[#d39486] line-clamp-1">
-              {product.notes[0]}
-            </div>
-          )}
         </div>
-
-        <Button
-          aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-          className={`h-12 w-12 shrink-0 rounded-full transition-all duration-300 ${
-            alreadyAdded
-              ? 'bg-[#f6f1ee] text-[#caa79b]'
-              : 'bg-[#f16b6b] text-white shadow-[0_8px_16px_rgba(241,107,107,0.25)] hover:bg-[#e85a5a] active:scale-95'
-          }`}
-          size="icon"
-          onClick={handleAdd}
-          disabled={alreadyAdded}
-        >
-          <span className="text-xl">{alreadyAdded ? '✓' : '🛒'}</span>
-        </Button>
       </CardContent>
     </Card>
   )
