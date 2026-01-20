@@ -91,7 +91,7 @@ export default function ProductCard({ product }) {
               {logoUrl ? (
                 <img src={logoUrl} alt="" className="h-full w-full object-contain p-[4px]" />
               ) : (
-                <span className="py-[6px] text-[8px] font-black tracking-tight text-white">
+                <span className="py-[6px] text-[12px] font-black tracking-tight text-white">
                   {product.supermarket}
                 </span>
               )}
@@ -103,17 +103,17 @@ export default function ProductCard({ product }) {
         <div className="flex min-w-0 flex-1 flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-[16px] font-semibold leading-tight text-[#71393B]">
+              <h3 className="truncate text-[20px] font-semibold leading-tight text-[#71393B]">
                 {formattedName}
               </h3>
               {formattedBrand && (
-                <p className="mt-[2px] truncate text-[12px] font-normal text-[#71393B]/70">
+                <p className="mt-[2px] truncate text-[16px] font-normal text-[#71393B]/70">
                   {formattedBrand}
                 </p>
               )}
             </div>
             {displayDiscount && (
-              <div className="ml-[12px] flex h-[24px] shrink-0 items-center justify-center rounded-full bg-[#FA7272] px-[12px] text-[12px] font-bold text-white">
+              <div className="ml-[12px] flex h-[24px] shrink-0 items-center justify-center rounded-full bg-[#FA7272] px-[12px] text-[16px] font-bold text-white">
                 {displayDiscount}
               </div>
             )}
@@ -121,24 +121,24 @@ export default function ProductCard({ product }) {
           <div className="flex items-end justify-between">
             <div>
               <div className="flex items-baseline gap-[8px]">
-                <span className="text-[24px] font-semibold text-[#E36E4B]">
+                <span className="text-[28px] font-semibold text-[#E36E4B]">
                   {formattedCurrent}
                 </span>
                 {formattedOld && (
-                  <span className="text-[16px] font-normal text-[#71393B]/40 line-through">
+                  <span className="text-[20px] font-normal text-[#71393B]/40 line-through">
                     {formattedOld}
                   </span>
                 )}
               </div>
               {metaLine && (
-                <p className="mt-[2px] text-[8px] font-normal text-[#71393B]/50">
+                <p className="mt-[2px] text-[12px] font-normal text-[#71393B]/50">
                   {metaLine}
                 </p>
               )}
             </div>
             <Button
               aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-              className={`flex h-[32px] shrink-0 items-center gap-[8px] rounded-full px-[16px] text-[16px] font-medium transition-colors ${
+              className={`flex h-[32px] shrink-0 items-center gap-[8px] rounded-full px-[16px] text-[20px] font-medium transition-colors ${
                 alreadyAdded
                   ? 'bg-[#f6f1ee] text-[#caa79b]'
                   : 'bg-[#FCBE69] text-[#71393B] hover:bg-[#FCBE69]/90'

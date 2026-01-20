@@ -243,7 +243,7 @@ export default function ProductsGrid({ searchQuery }) {
       ) : (
         <>
           {/* Default Section */}
-          <p className="font-serif text-3xl italic text-[#6d4b42]">
+          <p className="font-serif text-[40px] italic text-[#6d4b42]">
             Le migliori offerte della settimana
           </p>
           {products.length > 0 ? (
