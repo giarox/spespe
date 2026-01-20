@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button'
 import { useShoppingList } from '@/components/ShoppingListContext'
 
 const SUPERMARKET_LOGOS = {
-  lidl: 'https://upload.wikimedia.org/wikipedia/commons/9/91/Lidl-Logo.svg',
-  eurospin: 'https://upload.wikimedia.org/wikipedia/commons/c/c3/Eurospin_Logo.svg',
-  'oasi tigre': 'https://www.oasitigre.it/etc.clientlibs/oasitigre/clientlibs-ot/clientlib-site/resources/images/logo-oasitigre.svg',
-  'oasi': 'https://www.oasitigre.it/etc.clientlibs/oasitigre/clientlibs-ot/clientlib-site/resources/images/logo-oasitigre.svg',
-  'tigre': 'https://www.oasitigre.it/etc.clientlibs/oasitigre/clientlibs-ot/clientlib-site/resources/images/logo-oasitigre.svg',
+  lidl: '/logos/lidl-logo.png',
+  eurospin: '/logos/eurospin-logo.png',
+  'oasi tigre': '/logos/oasi-tigre-logo.png',
+  'oasi': '/logos/oasi-tigre-logo.png',
+  'tigre': '/logos/oasi-tigre-logo.png',
 }
 
 const formatText = (text) => {
