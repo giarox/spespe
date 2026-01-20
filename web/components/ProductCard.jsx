@@ -87,14 +87,14 @@ export default function ProductCard({ product }) {
         <div className="flex items-center gap-[12px] w-full">
           <div className="flex-shrink-0">
             <div
-              className={`w-[clamp(1.75rem,6vw,2.25rem)] aspect-square rounded-[6px] flex items-center justify-center overflow-hidden ${
+              className={`w-[40px] h-[40px] rounded-[6px] flex items-center justify-center overflow-hidden ${
                 logoUrl
                   ? 'bg-transparent'
                   : 'bg-[linear-gradient(180deg,_#FFF000_0%,_#FFF000_33%,_#E60A14_33%,_#E60A14_66%,_#0050AA_66%,_#0050AA_100%)]'
               }`}
             >
               {logoUrl ? (
-                <img src={logoUrl} alt="" className="h-full w-full object-contain p-[4px]" />
+                <img src={logoUrl} alt="" className="h-full w-full object-contain" />
               ) : (
                 <span className="text-[10px] font-medium text-gray-600 uppercase tracking-wider">
                   {product.supermarket}
