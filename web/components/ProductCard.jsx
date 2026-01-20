@@ -82,14 +82,14 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <Card className="product-card">
+    <Card className="w-full rounded-[24px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
       <CardContent className="flex py-4 px-3">
-        <div className="logo-product">
-          <div className={`chain-logo ${logoUrl ? 'no-overlay' : ''}`}>
+        <div className="flex-shrink-0">
+          <div className="w-[48px] h-[48px] rounded-[12px] flex items-center justify-center">
             {logoUrl ? (
               <img src={logoUrl} alt="" className="h-full w-full object-contain p-[4px]" />
             ) : (
-              <span className="chain-logo-text">
+              <span className="text-[10px] font-medium text-gray-600 uppercase tracking-wider">
                 {product.supermarket}
               </span>
             )}
@@ -98,50 +98,50 @@ export default function ProductCard({ product }) {
         <div className="w-[16px]" />
         <div className="flex min-w-0 flex-1 flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="product">
-              <h3 className="product-name">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[15px] font-semibold text-gray-900 leading-tight truncate">
                 {formattedName}
               </h3>
               {formattedBrand && (
-                <p className="brand-name">
+                <p className="text-[12px] text-gray-500 mt-[2px]">
                   {formattedBrand}
                 </p>
               )}
             </div>
             {displayDiscount && (
-              <div className="discount-chip">
-                <span className="discount-text">
+              <div className="ml-2 flex-shrink-0 bg-[#f6f1ee] text-[#71393B] text-[11px] font-semibold px-[8px] py-[4px] rounded-[8px]">
+                <span className="uppercase tracking-wider">
                   {displayDiscount}
                 </span>
               </div>
             )}
           </div>
-          <div className="infos-button">
-            <div className="additional-infos">
-              <div className="prices-discount">
-                <span className="offer-price">
+          <div className="flex items-center justify-between mt-[8px]">
+            <div className="flex flex-col">
+              <div className="flex items-baseline gap-[6px]">
+                <span className="text-[16px] font-bold text-gray-900">
                   {formattedCurrent}
                 </span>
                 {formattedOld && (
-                  <span className="old-price line-through">
+                  <span className="text-[12px] text-gray-400 line-through">
                     {formattedOld}
                   </span>
                 )}
               </div>
               {metaLine && (
-                <p className="weight-info">
+                <p className="text-[11px] text-gray-500 mt-[2px]">
                   {metaLine}
                 </p>
               )}
               {Array.isArray(product.notes) && product.notes.length > 0 && (
-                <p className="notes">
+                <p className="text-[10px] text-gray-400 mt-[2px] italic">
                   {product.notes.join(', ')}
                 </p>
               )}
             </div>
             <Button
               aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-              className={`button ${
+              className={`flex-shrink-0 h-[36px] px-[12px] text-[13px] font-semibold rounded-[10px] ${
                 alreadyAdded
                   ? 'bg-[#f6f1ee] text-[#caa79b]'
                   : 'bg-[#FCBE69] text-[#71393B] hover:bg-[#FCBE69]/90'
@@ -161,7 +161,7 @@ export default function ProductCard({ product }) {
                     strokeWidth="1.25"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="icon"
+                    className="w-[14px] h-[14px] ml-[6px]"
                   >
                     <path d="M3 3.14844H4.99656L7.64988 14.3805C7.90674 15.4664 8.92351 16.1981 10.0347 16.0949L16.972 15.4518C17.9761 15.3584 18.8246 14.6676 19.1184 13.7024L20.9505 7.6981C21.1704 6.98101 20.6294 6.25614 19.8793 6.26295L5.82943 6.37679" />
                     <path d="M15.0041 10.9396H11.8633" />
