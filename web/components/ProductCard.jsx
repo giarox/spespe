@@ -70,7 +70,7 @@ export default function ProductCard({ product }) {
 
   const metaLine = [product.weight_or_pack, product.price_per_unit]
     .filter(Boolean)
-    .join('  ')
+    .join(' • ')
 
   const handleAdd = async () => {
     if (alreadyAdded || isAdding) {
