@@ -82,106 +82,94 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <Card
-      className={`w-full overflow-hidden rounded-[24px] bg-white p-[12px] shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition-all duration-300 ${
-        isAdding ? 'scale-[1.02]' : ''
-      }`}
-    >
-      <CardContent className="flex h-[110px] items-start gap-[12px] p-0">
-        <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center">
-          <div className="flex h-full w-full flex-col overflow-hidden rounded-lg bg-[#0050AA]">
-            <div className="h-[6px] w-full bg-[#FFF000]" />
-            <div className="flex flex-1 items-center justify-center">
+    <Card className="w-full rounded-[24px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+      <CardContent className="flex h-[110px] p-[12px]">
+        <div className="flex items-start pt-[4px]">
+          <div className="flex h-[40px] w-[40px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg bg-[#0050AA]">
+            <div className="h-[4px] w-full bg-[#FFF000]" />
+            <div className="flex w-full flex-1 items-center justify-center">
               {logoUrl ? (
-                <img src={logoUrl} alt="" className="h-full w-full object-contain p-1" />
+                <img src={logoUrl} alt="" className="h-full w-full object-contain p-[4px]" />
               ) : (
-                <span className="px-[4px] py-[6px] text-center text-[8px] font-black tracking-tight text-white">
+                <span className="py-[6px] text-[8px] font-black tracking-tight text-white">
                   {product.supermarket}
                 </span>
               )}
             </div>
-            <div className="h-[6px] w-full bg-[#E60A14]" />
+            <div className="h-[4px] w-full bg-[#E60A14]" />
           </div>
         </div>
-
+        <div className="w-[16px]" />
         <div className="flex min-w-0 flex-1 flex-col justify-between">
-          <div className="flex items-start justify-between gap-[12px]">
-            <div className="min-w-0">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
               <h3 className="truncate text-[16px] font-semibold leading-tight text-[#71393B]">
                 {formattedName}
               </h3>
               {formattedBrand && (
-                <p className="truncate text-[12px] font-normal text-[#71393B]/70">{formattedBrand}</p>
+                <p className="mt-[2px] truncate text-[12px] font-normal text-[#71393B]/70">
+                  {formattedBrand}
+                </p>
               )}
             </div>
             {displayDiscount && (
-              <span className="shrink-0 rounded-full bg-[#FA7272] px-[12px] text-[12px] font-bold leading-[24px] text-white">
+              <div className="ml-[12px] flex h-[24px] shrink-0 items-center justify-center rounded-full bg-[#FA7272] px-[12px] text-[12px] font-bold text-white">
                 {displayDiscount}
-              </span>
+              </div>
             )}
           </div>
-
-            <div className="flex items-end justify-between gap-[12px]">
+          <div className="flex items-end justify-between">
+            <div>
               <div className="flex items-baseline gap-[8px]">
                 <span className="text-[24px] font-semibold text-[#E36E4B]">
                   {formattedCurrent}
                 </span>
                 {formattedOld && (
-                  <span className="text-[16px] font-normal text-[#71393B]/40 line-through decoration-1">
+                  <span className="text-[16px] font-normal text-[#71393B]/40 line-through">
                     {formattedOld}
                   </span>
                 )}
               </div>
-              <Button
-                aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-                className={`h-[32px] shrink-0 rounded-full px-[16px] text-[16px] font-medium transition-all duration-300 ${
-                  alreadyAdded
-                    ? 'bg-[#f6f1ee] text-[#caa79b]'
-                    : 'bg-[#FCBE69] text-[#71393B] shadow-[0_8px_16px_rgba(252,190,105,0.35)] hover:bg-[#f5b35a] active:scale-95'
-                }`}
-                onClick={handleAdd}
-                disabled={alreadyAdded}
-              >
-                {alreadyAdded ? (
-                  '✓'
-                ) : (
-                  <span className="flex items-center gap-[8px]">
-                    Aggiungi
-                    <svg
-                      aria-hidden="true"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="shrink-0"
-                    >
-                      <path
-                        d="M7.5 6H4L2 14.5C1.8 15.4 2.5 16.3 3.5 16.3H17.6C18.4 16.3 19.2 15.7 19.4 14.9L21.3 7.5H7.5Z"
-                        stroke="#71393B"
-                        strokeWidth="1.6"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M9.5 19.5C9.5 20.3 8.8 21 8 21C7.2 21 6.5 20.3 6.5 19.5C6.5 18.7 7.2 18 8 18C8.8 18 9.5 18.7 9.5 19.5Z"
-                        fill="#71393B"
-                      />
-                      <path
-                        d="M17.5 19.5C17.5 20.3 16.8 21 16 21C15.2 21 14.5 20.3 14.5 19.5C14.5 18.7 15.2 18 16 18C16.8 18 17.5 18.7 17.5 19.5Z"
-                        fill="#71393B"
-                      />
-                    </svg>
-                  </span>
-                )}
-              </Button>
+              {metaLine && (
+                <p className="mt-[2px] text-[8px] font-normal text-[#71393B]/50">
+                  {metaLine}
+                </p>
+              )}
             </div>
-
-
-          {metaLine && (
-            <div className="text-[8px] font-normal text-[#71393B]/50">
-              {metaLine}
-            </div>
-          )}
+            <Button
+              aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
+              className={`flex h-[32px] shrink-0 items-center gap-[8px] rounded-full px-[16px] text-[16px] font-medium transition-colors ${
+                alreadyAdded
+                  ? 'bg-[#f6f1ee] text-[#caa79b]'
+                  : 'bg-[#FCBE69] text-[#71393B] hover:bg-[#FCBE69]/90'
+              }`}
+              onClick={handleAdd}
+              disabled={alreadyAdded}
+            >
+              {alreadyAdded ? (
+                '✓'
+              ) : (
+                <>
+                  Aggiungi
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-[18px] w-[18px]"
+                  >
+                    <circle cx="8" cy="21" r="1" />
+                    <circle cx="19" cy="21" r="1" />
+                    <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                    <line x1="12" y1="7" x2="12" y2="11" />
+                    <line x1="10" y1="9" x2="14" y2="9" />
+                  </svg>
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
