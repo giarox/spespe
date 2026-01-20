@@ -83,7 +83,7 @@ export default function ProductCard({ product }) {
 
   return (
     <Card className="w-full rounded-[24px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-      <CardContent className="flex h-[110px] p-[12px]">
+      <CardContent className="flex h-[110px] py-4 px-3">
         <div className="flex items-start pt-[4px]">
           <div className="flex h-[40px] w-[40px] shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg bg-[#0050AA]">
             <div className="h-[4px] w-full bg-[#FFF000]" />
