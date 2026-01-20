@@ -103,11 +103,11 @@ export default function ProductCard({ product }) {
             </div>
           </div>
           <div className="flex flex-1 min-w-0 flex-col items-start">
-            <h3 className="font-['Vend_Sans:SemiBold',sans-serif] text-[18px] leading-[26px] text-[#561517] font-semibold">
+            <h3 className="font-sans font-semibold text-[18px] leading-[26px] text-[#561517] font-semibold">
               {formattedName}
             </h3>
             {formattedBrand && (
-              <p className="font-['Vend_Sans:Regular',sans-serif] text-[16px] leading-[20px] text-[rgba(113,57,59,0.72)] font-normal mt-[2px]">
+              <p className="font-sans font-normal text-[16px] leading-[20px] text-[rgba(113,57,59,0.72)] font-normal mt-[2px]">
                 {formattedBrand}
               </p>
             )}
@@ -116,36 +116,36 @@ export default function ProductCard({ product }) {
         <div className="flex items-center gap-[12px] w-full">
           <div className="flex flex-1 min-w-0 flex-col gap-[8px]">
             <div className="flex flex-wrap items-center gap-[10px] w-full min-w-0">
-              <span className="font-['Vend_Sans:SemiBold',sans-serif] text-[24px] leading-[32px] text-[#e36e4b] font-semibold">
+              <span className="font-sans font-semibold text-[24px] leading-[32px] text-[#e36e4b] font-semibold">
                 {formattedCurrent}
               </span>
               {formattedOld && (
-                <span className="font-['Vend_Sans:Regular',sans-serif] text-[16px] text-[rgba(113,57,59,0.4)] font-normal line-through decoration-solid">
+                <span className="font-sans font-normal text-[16px] text-[rgba(113,57,59,0.4)] font-normal line-through decoration-solid">
                   {formattedOld}
                 </span>
               )}
               {displayDiscount && (
                 <div className="flex-shrink-0 px-[7px] py-[2px] bg-[#e36e4b] text-white text-[14px] font-bold rounded-[28px] border border-solid border-[rgba(255,255,255,0.08)] shadow-[inset_0px_2px_4px_0px_rgba(255,255,255,0.12)]">
-                  <span className="uppercase tracking-wider font-['Vend_Sans:Bold',sans-serif]">
+                  <span className="uppercase tracking-wider font-sans font-bold">
                     {displayDiscount}
                   </span>
                 </div>
               )}
             </div>
             {metaLine && (
-              <p className="font-['Vend_Sans:Regular',sans-serif] text-[12px] leading-[12px] text-[rgba(113,57,59,0.64)] font-normal">
+              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(113,57,59,0.64)] font-normal">
                 {metaLine}
               </p>
             )}
             {Array.isArray(product.notes) && product.notes.length > 0 && (
-              <p className="font-['Vend_Sans:Regular',sans-serif] text-[12px] leading-[12px] text-[rgba(113,57,59,0.64)] font-normal italic">
+              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(113,57,59,0.64)] font-normal italic">
                 {product.notes.join(', ')}
               </p>
             )}
           </div>
           <Button
             aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-            className={`flex-shrink-0 w-[clamp(2.5rem,12vw,3.25rem)] aspect-square font-['Vend_Sans:Bold',sans-serif] text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] ${
+            className={`flex-shrink-0 w-[clamp(2.5rem,12vw,3.25rem)] aspect-square font-sans font-bold text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] ${
               alreadyAdded
                 ? 'bg-[#f6f1ee] text-[#caa79b]'
                 : 'bg-[#f7ae4b] text-[#561517] hover:bg-[#f7ae4b]/90'
