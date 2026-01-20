@@ -82,61 +82,66 @@ export default function ProductCard({ product }) {
   }
 
   return (
-    <Card className="w-full rounded-[24px] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+    <Card className="product-card">
       <CardContent className="flex py-4 px-3">
-        <div className="flex items-start pt-[4px]">
-          <div className="flex h-[40px] w-[40px] shrink-0 flex-col items-center justify-center overflow-hidden">
-            <div className="flex w-full flex-1 items-center justify-center">
-              {logoUrl ? (
-                <img src={logoUrl} alt="" className="h-full w-full object-contain p-[4px]" />
-              ) : (
-                <span className="py-[6px] text-[12px] font-black tracking-tight text-[#0050AA]">
-                  {product.supermarket}
-                </span>
-              )}
-            </div>
+        <div className="logo-product">
+          <div className={`chain-logo ${logoUrl ? 'no-overlay' : ''}`}>
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="h-full w-full object-contain p-[4px]" />
+            ) : (
+              <span className="chain-logo-text">
+                {product.supermarket}
+              </span>
+            )}
           </div>
         </div>
         <div className="w-[16px]" />
         <div className="flex min-w-0 flex-1 flex-col justify-between">
           <div className="flex items-start justify-between">
-            <div className="min-w-0 flex-1">
-              <h3 className="truncate text-[20px] font-semibold leading-tight text-[#71393B]">
+            <div className="product">
+              <h3 className="product-name">
                 {formattedName}
               </h3>
               {formattedBrand && (
-                <p className="mt-[2px] truncate text-[16px] font-normal text-[#71393B]/70">
+                <p className="brand-name">
                   {formattedBrand}
                 </p>
               )}
             </div>
             {displayDiscount && (
-              <div className="ml-[12px] flex h-[24px] shrink-0 items-center justify-center rounded-full bg-[#FA7272] px-[12px] text-[16px] font-bold text-white">
-                {displayDiscount}
+              <div className="discount-chip">
+                <span className="discount-text">
+                  {displayDiscount}
+                </span>
               </div>
             )}
           </div>
-          <div className="flex items-end justify-between">
-            <div>
-              <div className="flex items-center gap-[8px]">
-                <span className="text-[28px] font-semibold text-[#E36E4B]">
+          <div className="infos-button">
+            <div className="additional-infos">
+              <div className="prices-discount">
+                <span className="offer-price">
                   {formattedCurrent}
                 </span>
                 {formattedOld && (
-                  <span className="text-[20px] font-normal text-[#71393B]/40 line-through">
+                  <span className="old-price line-through">
                     {formattedOld}
                   </span>
                 )}
               </div>
               {metaLine && (
-                <p className="mt-[2px] text-[12px] font-normal text-[#71393B]/50">
+                <p className="weight-info">
                   {metaLine}
+                </p>
+              )}
+              {Array.isArray(product.notes) && product.notes.length > 0 && (
+                <p className="notes">
+                  {product.notes.join(', ')}
                 </p>
               )}
             </div>
             <Button
               aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-              className={`flex h-[32px] shrink-0 items-center gap-[8px] rounded-full px-[16px] text-[20px] font-medium transition-colors ${
+              className={`button ${
                 alreadyAdded
                   ? 'bg-[#f6f1ee] text-[#caa79b]'
                   : 'bg-[#FCBE69] text-[#71393B] hover:bg-[#FCBE69]/90'
@@ -156,7 +161,7 @@ export default function ProductCard({ product }) {
                     strokeWidth="1.25"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="size-6"
+                    className="icon"
                   >
                     <path d="M3 3.14844H4.99656L7.64988 14.3805C7.90674 15.4664 8.92351 16.1981 10.0347 16.0949L16.972 15.4518C17.9761 15.3584 18.8246 14.6676 19.1184 13.7024L20.9505 7.6981C21.1704 6.98101 20.6294 6.25614 19.8793 6.26295L5.82943 6.37679" />
                     <path d="M15.0041 10.9396H11.8633" />
@@ -173,4 +178,3 @@ export default function ProductCard({ product }) {
     </Card>
   )
 }
-

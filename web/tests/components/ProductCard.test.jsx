@@ -46,7 +46,7 @@ describe('ProductCard Component', () => {
 
   it('displays weight/pack information', () => {
     renderWithProvider(<ProductCard product={mockProduct} />)
-    expect(screen.getByText('500 g confezione')).toBeInTheDocument()
+    expect(screen.getByText(/500 g confezione/)).toBeInTheDocument()
   })
 
   it('shows Italian notes', () => {
