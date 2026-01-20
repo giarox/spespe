@@ -118,7 +118,7 @@ export default function ProductCard({ product }) {
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <div className="flex items-baseline gap-[8px]">
+              <div className="flex items-center gap-[8px]">
                 <span className="text-[28px] font-semibold text-[#E36E4B]">
                   {formattedCurrent}
                 </span>
