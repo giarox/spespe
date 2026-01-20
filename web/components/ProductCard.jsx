@@ -145,7 +145,7 @@ export default function ProductCard({ product }) {
           </div>
           <Button
             aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-            className={`flex-shrink-0 w-[clamp(2.5rem,12vw,3.25rem)] aspect-square font-sans font-bold text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] ${
+            className={`flex-shrink-0 w-[48px] h-[48px] font-sans font-bold text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] ${
               alreadyAdded
                 ? 'bg-[#f6f1ee] text-[#caa79b]'
                 : 'bg-[#f7ae4b] text-[#561517] hover:bg-[#f7ae4b]/90'
@@ -163,7 +163,7 @@ export default function ProductCard({ product }) {
                 strokeWidth="1.25"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-[clamp(12px,3vw,16px)] h-[clamp(12px,3vw,16px)]"
+                className="w-[24px] h-[24px]"
               >
                 <path d="M3 3.14844H4.99656L7.64988 14.3805C7.90674 15.4664 8.92351 16.1981 10.0347 16.0949L16.972 15.4518C17.9761 15.3584 18.8246 14.6676 19.1184 13.7024L20.9505 7.6981C21.1704 6.98101 20.6294 6.25614 19.8793 6.26295L5.82943 6.37679" />
                 <path d="M15.0041 10.9396H11.8633" />
