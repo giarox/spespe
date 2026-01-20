@@ -156,7 +156,7 @@ export default function ProductCard({ product }) {
                     strokeWidth="1.25"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="h-[24px] w-[24px]"
+                    className="size-6"
                   >
                     <path d="M3 3.14844H4.99656L7.64988 14.3805C7.90674 15.4664 8.92351 16.1981 10.0347 16.0949L16.972 15.4518C17.9761 15.3584 18.8246 14.6676 19.1184 13.7024L20.9505 7.6981C21.1704 6.98101 20.6294 6.25614 19.8793 6.26295L5.82943 6.37679" />
                     <path d="M15.0041 10.9396H11.8633" />
