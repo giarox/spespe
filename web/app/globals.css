@@ -49,34 +49,34 @@
 :root {
   --radius: 1.5rem;
   --background: #f6f1ee;
-  --foreground: #6d4b42;
+  --foreground: #4a2e24;
   --card: #ffffff;
-  --card-foreground: #6d4b42;
+  --card-foreground: #4a2e24;
   --popover: #ffffff;
-  --popover-foreground: #6d4b42;
-  --primary: #f16b6b;
+  --popover-foreground: #4a2e24;
+  --primary: #c13c3c;
   --primary-foreground: #ffffff;
   --secondary: #fbe8d8;
-  --secondary-foreground: #6d4b42;
+  --secondary-foreground: #4a2e24;
   --muted: #f3e0d3;
-  --muted-foreground: #b18474;
+  --muted-foreground: #8a5a4a;
   --accent: #f7b960;
   --accent-foreground: #6d4b42;
   --destructive: #f16b6b;
   --border: #f1d6c6;
   --input: #f1d6c6;
   --ring: #f1b6a7;
-  --chart-1: #f16b6b;
+  --chart-1: #c13c3c;
   --chart-2: #f7b960;
   --chart-3: #e67e63;
-  --chart-4: #caa79b;
-  --chart-5: #b18474;
+  --chart-4: #a87d6e;
+  --chart-5: #8a5a4a;
   --sidebar: #fbe8d8;
-  --sidebar-foreground: #6d4b42;
-  --sidebar-primary: #f16b6b;
+  --sidebar-foreground: #4a2e24;
+  --sidebar-primary: #c13c3c;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f7b960;
-  --sidebar-accent-foreground: #6d4b42;
+  --sidebar-accent-foreground: #4a2e24;
   --sidebar-border: #f1d6c6;
   --sidebar-ring: #f1b6a7;
 }
@@ -194,29 +194,29 @@
   gap: 2px;
 }
 
-.product-name {
-  font-family: 'Vend Sans', sans-serif;
-  font-weight: 600;
-  font-size: 18px;
-  line-height: 26px;
-  color: #71393B;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
-}
+ .product-name {
+   font-family: 'Vend Sans', sans-serif;
+   font-weight: 600;
+   font-size: 18px;
+   line-height: 26px;
+   color: #5a2a2d;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   width: 100%;
+ }
 
-.brand-name {
-  font-family: 'Vend Sans', sans-serif;
-  font-weight: 400;
-  font-size: 16px;
-  line-height: 20px;
-  color: #C4A68B;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
-}
+ .brand-name {
+   font-family: 'Vend Sans', sans-serif;
+   font-weight: 400;
+   font-size: 16px;
+   line-height: 20px;
+   color: #9b7c5f;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   width: 100%;
+ }
 
 /* Infos + Button Row */
 .infos-button {
@@ -255,15 +255,15 @@
   white-space: nowrap;
 }
 
-.old-price {
-  font-family: 'Vend Sans', sans-serif;
-  font-weight: 400;
-  font-size: 16px;
-  line-height: 20px;
-  color: #C4A68B;
-  text-decoration: line-through;
-  white-space: nowrap;
-}
+ .old-price {
+   font-family: 'Vend Sans', sans-serif;
+   font-weight: 400;
+   font-size: 16px;
+   line-height: 20px;
+   color: #9b7c5f;
+   text-decoration: line-through;
+   white-space: nowrap;
+ }
 
 .discount-chip {
   height: 24px;
@@ -288,33 +288,33 @@
   color: #FFFFFF;
 }
 
-.weight-info {
-  font-family: 'Vend Sans', sans-serif;
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 12px;
-  color: #C4A68B;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
-}
+ .weight-info {
+   font-family: 'Vend Sans', sans-serif;
+   font-weight: 400;
+   font-size: 12px;
+   line-height: 12px;
+   color: #9b7c5f;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   width: 100%;
+ }
 
-.notes {
-  font-family: 'Vend Sans', sans-serif;
-  font-weight: 400;
-  font-size: 11px;
-  line-height: 14px;
-  color: #71393B;
-  background: #FBE8D8;
-  padding: 4px 8px;
-  border-radius: 8px;
-  margin-top: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
-}
+ .notes {
+   font-family: 'Vend Sans', sans-serif;
+   font-weight: 400;
+   font-size: 11px;
+   line-height: 14px;
+   color: #5a2a2d;
+   background: #FBE8D8;
+   padding: 4px 8px;
+   border-radius: 8px;
+   margin-top: 4px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   width: 100%;
+ }
 
 .button {
   width: 48px;

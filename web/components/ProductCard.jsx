@@ -117,7 +117,7 @@ const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
               {formattedName}
             </h3>
             {formattedBrand && (
-              <p className="font-sans font-normal text-[16px] leading-[20px] text-[rgba(113,57,59,0.72)] font-normal mt-[2px]">
+              <p className="font-sans font-normal text-[16px] leading-[20px] text-[rgba(74,52,47,0.9)] font-normal mt-[2px]">
                 {formattedBrand}
               </p>
             )}
@@ -130,7 +130,7 @@ const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
                 {formattedCurrent}
               </span>
               {formattedOld && (
-                <span className="font-sans font-normal text-[16px] text-[rgba(113,57,59,0.4)] font-normal line-through decoration-solid">
+                <span className="font-sans font-normal text-[16px] text-[rgba(74,52,47,0.7)] font-normal line-through decoration-solid">
                   {formattedOld}
                 </span>
               )}
@@ -143,12 +143,12 @@ const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
               )}
             </div>
             {metaLine && (
-              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(113,57,59,0.64)] font-normal">
+              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(74,52,47,0.8)] font-normal">
                 {metaLine}
               </p>
             )}
             {Array.isArray(product.notes) && product.notes.length > 0 && (
-              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(113,57,59,0.64)] font-normal italic">
+              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(74,52,47,0.8)] font-normal italic">
                 {product.notes.join(', ')}
               </p>
             )}
@@ -157,7 +157,7 @@ const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
             aria-label={alreadyAdded ? 'Aggiunto alla Lista' : isAdding ? 'Aggiungendo...' : 'Aggiungi alla Lista'}
             className={`flex-shrink-0 w-[48px] h-[48px] font-sans font-bold text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] transition-all duration-200 active:scale-95 ${
               alreadyAdded
-                ? 'bg-[#f6f1ee] text-[#caa79b]'
+                ? 'bg-[#16a34a] text-white'
                 : isAdding
                 ? 'bg-[#f7ae4b]/80 text-[#561517]'
                 : 'bg-[#f7ae4b] text-[#561517] hover:bg-[#f7ae4b]/90 active:bg-[#f7ae4b]/80'
