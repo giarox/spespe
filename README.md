@@ -1,82 +1,119 @@
-# Spespe: Italian Supermarket Price Scraper
+# Spespe
 
-A Python-based web scraper that extracts product data from Italian supermarket flyers using browser automation and AI vision.
-
-## Phase 1: Concept Validation
-
-- **Target Supermarket**: Lidl (expand to Oasi, Eurospin, Si Con Te in later phases)
-- **AI Vision Model**: Molmo2 8B via OpenRouter API (free tier)
-- **Browser Automation**: Playwright with Chromium
-- **Output Format**: CSV files with UTF-8 encoding
-- **Execution**: GitHub Actions (scheduled + manual trigger)
+Spespe is a full-stack application that scrapes Italian supermarket flyer data and provides a modern web interface for multi-store analysis and visualization.
 
 ## Features
 
-- Automated flyer screenshot capture
-- AI-powered product extraction with vision model
-- Structured CSV export with metadata (supermarket, page, date, prices)
-- Verbose logging for debugging
-- GitHub Actions workflow for scheduled runs (Mondays 9 AM UTC)
+- **Automated Scraping**: Captures flyer data from Italian supermarkets using Playwright and AI-powered vision models
+- **Web Dashboard**: Interactive web app for browsing, searching, and analyzing flyer data
+- **Performance Optimized**: Built with Next.js for fast loading and SEO
+- **Accessible & Mobile-First**: Designed with accessibility in mind and optimized for all devices
+- **Real-time Sync**: Data synced to Supabase for reliable storage and querying
 
-## Project Structure
+## Stack
 
+### Backend/Scraper
+- **Automation**: Playwright with Chromium
+- **Vision Model**: Gemini 2.5 Flash via OpenRouter
+- **Workflow**: `.github/workflows/spotter.yml`
+- **Storage**: Supabase for data persistence
+
+### Frontend/Web App
+- **Framework**: Next.js 16
+- **UI Library**: React 19
+- **Styling**: Tailwind CSS
+- **Database Client**: Supabase JS
+- **State Management**: TanStack Query
+- **Deployment**: Vercel
+
+## Installation & Setup
+
+### Prerequisites
+- Python 3.8+
+- Node.js 18+
+- Supabase account (for database)
+
+### Scraper Setup
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/spespe.git
+   cd spespe
+   ```
+
+2. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Set up environment variables in `.env`:
+   ```
+   OPENROUTER_API_KEY=your_openrouter_key
+   SUPABASE_URL=your_supabase_url
+   SUPABASE_KEY=your_supabase_key
+   ```
+
+### Web App Setup
+1. Navigate to the web directory:
+   ```bash
+   cd web
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Create a `.env.local` file with your Supabase credentials:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+Visit `http://localhost:3000` to access the web app.
+
+## Running the Scraper
+
+To run the scraper manually:
+```bash
+python scraper/main.py  # Adjust path as needed
 ```
-spespe/
-├── src/
-│   ├── __init__.py
-│   ├── browser.py          # Playwright automation
-│   ├── vision.py           # OpenRouter Molmo2 integration
-│   ├── extractor.py        # Product extraction logic
-│   ├── csv_export.py       # CSV output generation
-│   └── logger.py           # Verbose logging setup
-├── tests/
-│   ├── __init__.py
-│   └── test_integration.py
-├── data/
-│   └── output/             # CSV files go here
-├── .github/workflows/
-│   └── scrape.yml          # GitHub Actions workflow
-├── requirements.txt
-├── .env.example
-└── README.md
-```
 
-## Setup
+The scraper can also be triggered via GitHub Actions workflow.
 
-1. Clone the repository
-2. Copy `.env.example` to `.env` and add your OpenRouter API key
-3. Install dependencies: `pip install -r requirements.txt`
-4. Run: `python -m src.main`
+## Deployment
 
-## Environment Variables
+### Web App
+1. Connect your repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
 
-- `OPENROUTER_API_KEY`: Your OpenRouter API key (free tier)
-
-## Output
-
-Product data is exported to `data/output/lidl_products_YYYYMMDD_HHMMSS.csv`
-
-CSV columns:
-- supermarket
-- flyer_date
-- page_number
-- product_name
-- original_price
-- discounted_price
-- discount_percentage
-- extraction_timestamp
-- confidence_score
+### Scraper
+The scraper runs via GitHub Actions. Ensure your repository secrets are configured with the necessary API keys.
 
 ## Testing
 
+### Web App
 ```bash
-pytest tests/
+cd web
+npm test
 ```
 
-## Logging
+### Scraper
+```bash
+pytest
+```
 
-All operations produce verbose logs to stdout and `data/logs/scraper.log`
+## Documentation
 
----
+- [Product Vision & Roadmap](docs/PRODUCT_VISION.md)
+- [API Documentation](docs/api.md) (if available)
+- [Contributing Guide](CONTRIBUTING.md) (if available)
 
-**Status**: Phase 1 - Concept Validation
+## License
+
+[Add license information here]

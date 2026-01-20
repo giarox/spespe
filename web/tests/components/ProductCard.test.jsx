@@ -1,13 +1,20 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import ProductCard from '@/components/ProductCard'
-import { ShoppingListProvider } from '@/components/ShoppingListContext'
 
-const renderWithProvider = (ui) => render(
-  <ShoppingListProvider>
-    {ui}
-  </ShoppingListProvider>
-)
+// Mock the ShoppingListContext
+const mockUseShoppingList = {
+  items: [],
+  addItem: vi.fn(),
+  hasProduct: vi.fn()
+}
+
+vi.mock('@/components/ShoppingListContext', () => ({
+  ShoppingListProvider: ({ children }) => <div>{children}</div>,
+  useShoppingList: () => mockUseShoppingList
+}))
+
+const renderWithProvider = (ui) => render(ui)
 
 describe('ProductCard Component', () => {
   const mockProduct = {
@@ -81,5 +88,44 @@ describe('ProductCard Component', () => {
     }
     renderWithProvider(<ProductCard product={productWithBrand} />)
     expect(screen.getByText('Realforno')).toBeInTheDocument()
+  })
+
+  it('shows green background when item is added', () => {
+    mockUseShoppingList.hasProduct.mockReturnValue(true)
+    renderWithProvider(<ProductCard product={mockProduct} />)
+    const button = screen.getByRole('button')
+    expect(button).toHaveClass('bg-[#16a34a]')
+    mockUseShoppingList.hasProduct.mockReturnValue(false)
+  })
+
+  it('shows white text when item is added', () => {
+    mockUseShoppingList.hasProduct.mockReturnValue(true)
+    renderWithProvider(<ProductCard product={mockProduct} />)
+    const button = screen.getByRole('button')
+    expect(button).toHaveClass('text-white')
+    mockUseShoppingList.hasProduct.mockReturnValue(false)
+  })
+
+  it('cart icon has size-8 class when not added', () => {
+    mockUseShoppingList.hasProduct.mockReturnValue(false)
+    renderWithProvider(<ProductCard product={mockProduct} />)
+    const svg = screen.getByRole('button').querySelector('svg')
+    expect(svg).toHaveClass('size-8')
+    expect(svg).toHaveClass('!important')
+  })
+
+  it('has proper accessibility labels for added state', () => {
+    mockUseShoppingList.hasProduct.mockReturnValue(true)
+    renderWithProvider(<ProductCard product={mockProduct} />)
+    const button = screen.getByRole('button', { name: 'Aggiunto alla Lista' })
+    expect(button).toBeInTheDocument()
+    mockUseShoppingList.hasProduct.mockReturnValue(false)
+  })
+
+  it('has proper accessibility labels for not added state', () => {
+    mockUseShoppingList.hasProduct.mockReturnValue(false)
+    renderWithProvider(<ProductCard product={mockProduct} />)
+    const button = screen.getByRole('button', { name: 'Aggiungi alla Lista' })
+    expect(button).toBeInTheDocument()
   })
 })
