@@ -1,8 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import ProductCard from '@/components/ProductCard'
+import { useShoppingList } from '@/components/ShoppingListContext'
 
 const PAGE_SIZE = 36
 const MAX_ITEMS = 360
@@ -29,22 +31,46 @@ const buildQuery = (searchQuery, page) => {
 }
 
 export default function ProductsGrid({ searchQuery }) {
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [page, setPage] = useState(0)
-  const [error, setError] = useState(null)
-  const [showFuzzyHint, setShowFuzzyHint] = useState(false)
-  const [isTransitioning, setIsTransitioning] = useState(false)
   const sentinelRef = useRef(null)
-  const searchTimeoutRef = useRef(null)
-  const activeRequestRef = useRef(0)
+  const { hasProduct } = useShoppingList()
 
   const normalizedQuery = useMemo(() => normalizeQuery(searchQuery), [searchQuery])
 
+  const {
+    data,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+  } = useInfiniteQuery({
+    queryKey: ['products', normalizedQuery],
+    queryFn: async ({ pageParam = 0 }) => {
+      const { data, error } = await buildQuery(normalizedQuery, pageParam)
+      if (error) throw error
+      return data || []
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < PAGE_SIZE) return undefined
+      return allPages.length
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  })
+
+  const products = data?.pages.flat().slice(0, MAX_ITEMS) || []
+  const productsWithAdded = useMemo(() => products.map(p => ({ ...p, isAdded: hasProduct(p.id) })), [products, hasProduct])
+  const hasMore = hasNextPage && products.length < MAX_ITEMS
+  const loading = isLoading
+  const loadingMore = isFetchingNextPage
+  const showFuzzyHint = Boolean(normalizedQuery) && products.length > 0
+  const isTransitioning = isFetching && !isFetchingNextPage
+
   const splitProducts = useMemo(() => {
-    if (!normalizedQuery || products.length === 0) {
+    if (!normalizedQuery || productsWithAdded.length === 0) {
       return { exact: [], related: [] }
     }
 
@@ -52,7 +78,7 @@ export default function ProductsGrid({ searchQuery }) {
     const exact = []
     const related = []
 
-    products.forEach((product) => {
+    productsWithAdded.forEach((product) => {
       const nameLower = (product.product_name || '').toLowerCase()
       if (nameLower.startsWith(queryLower)) {
         exact.push(product)
@@ -62,90 +88,7 @@ export default function ProductsGrid({ searchQuery }) {
     })
 
     return { exact, related }
-  }, [products, normalizedQuery])
-
-  const loadInitial = useCallback(async () => {
-    const requestId = activeRequestRef.current + 1
-    activeRequestRef.current = requestId
-
-    setIsTransitioning(true)
-    setLoading(true)
-    setError(null)
-    setProducts([])
-    setHasMore(true)
-    setPage(0)
-    setShowFuzzyHint(false)
-
-    const { data, error: fetchError } = await buildQuery(normalizedQuery, 0)
-
-    if (activeRequestRef.current !== requestId) {
-      return
-    }
-
-    if (fetchError) {
-      setError(fetchError.message)
-      setLoading(false)
-      setIsTransitioning(false)
-      return
-    }
-
-    const freshData = data || []
-
-    setProducts(freshData.slice(0, MAX_ITEMS))
-    setHasMore(freshData.length === PAGE_SIZE)
-    setLoading(false)
-    setShowFuzzyHint(Boolean(normalizedQuery) && freshData.length > 0)
-    setTimeout(() => setIsTransitioning(false), 150)
-  }, [normalizedQuery])
-
-
-  const loadMore = useCallback(async () => {
-    if (loadingMore || loading || !hasMore || isTransitioning) {
-      return
-    }
-
-    const requestId = activeRequestRef.current + 1
-    activeRequestRef.current = requestId
-
-    const nextPage = page + 1
-    setLoadingMore(true)
-
-    const { data, error: fetchError } = await buildQuery(normalizedQuery, nextPage)
-
-    if (activeRequestRef.current !== requestId) {
-      return
-    }
-
-    if (fetchError) {
-      setError(fetchError.message)
-      setLoadingMore(false)
-      return
-    }
-
-    const freshData = data || []
-    const updated = [...products, ...freshData]
-
-    setProducts(updated.slice(0, MAX_ITEMS))
-    setPage(nextPage)
-    setHasMore(freshData.length === PAGE_SIZE)
-    setLoadingMore(false)
-  }, [normalizedQuery, page, products, loadingMore, loading, hasMore, isTransitioning])
-
-  useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-
-    searchTimeoutRef.current = setTimeout(() => {
-      loadInitial()
-    }, SEARCH_DEBOUNCE_MS)
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
-    }
-  }, [normalizedQuery])
+  }, [productsWithAdded, normalizedQuery])
 
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || loadingMore || loading) {
@@ -155,7 +98,7 @@ export default function ProductsGrid({ searchQuery }) {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          loadMore()
+          fetchNextPage()
         }
       },
       { rootMargin: '240px' }
@@ -164,13 +107,13 @@ export default function ProductsGrid({ searchQuery }) {
     observer.observe(sentinelRef.current)
 
     return () => observer.disconnect()
-  }, [hasMore, loadMore, loading, loadingMore])
+  }, [hasMore, fetchNextPage, loading, loadingMore])
 
-  if (error) {
+  if (isError) {
     return (
       <div className="text-center py-12">
         <p className="text-xl text-red-500">Errore nel caricamento</p>
-        <p className="text-sm text-gray-500 mt-2">{error}</p>
+        <p className="text-sm text-gray-500 mt-2">{error.message}</p>
       </div>
     )
   }
@@ -205,7 +148,7 @@ export default function ProductsGrid({ searchQuery }) {
               >
                 {splitProducts.exact.map((product) => (
                   <div key={product.id} className="transition-transform duration-300 ease-out">
-                    <ProductCard product={product} />
+                    <ProductCard product={product} isAdded={product.isAdded} />
                   </div>
                 ))}
               </div>
@@ -225,7 +168,7 @@ export default function ProductsGrid({ searchQuery }) {
               >
                 {splitProducts.related.map((product) => (
                   <div key={product.id} className="transition-transform duration-300 ease-out">
-                    <ProductCard product={product} />
+                    <ProductCard product={product} isAdded={product.isAdded} />
                   </div>
                 ))}
               </div>
@@ -246,19 +189,19 @@ export default function ProductsGrid({ searchQuery }) {
           <p className="font-serif text-[40px] italic text-[#6d4b42]">
             Le migliori offerte della settimana
           </p>
-          {products.length > 0 ? (
-            <div
-              className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
-                isTransitioning ? 'opacity-70 blur-[1px]' : 'opacity-100'
-              }`}
-            >
-              {products.map((product) => (
-                <div key={product.id} className="transition-transform duration-300 ease-out">
-                  <ProductCard product={product} />
-                </div>
-              ))}
-            </div>
-          ) : (
+           {productsWithAdded.length > 0 ? (
+             <div
+               className={`grid grid-cols-1 gap-6 transition-all duration-300 ${
+                 isTransitioning ? 'opacity-70 blur-[1px]' : 'opacity-100'
+               }`}
+             >
+               {productsWithAdded.map((product) => (
+                 <div key={product.id} className="transition-transform duration-300 ease-out">
+                   <ProductCard product={product} isAdded={product.isAdded} />
+                 </div>
+               ))}
+             </div>
+           ) : (
             <div className="text-center py-12">
               <p className="text-xl text-[#b18474]">Nessun risultato</p>
               <p className="text-sm text-[#caa79b] mt-2">Prova con un termine diverso</p>

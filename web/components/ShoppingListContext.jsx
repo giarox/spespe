@@ -1,6 +1,7 @@
 "use client"
 
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 const ShoppingListContext = createContext(null)
@@ -31,19 +32,19 @@ const persistItems = (items) => {
 }
 
 export function ShoppingListProvider({ children }) {
-  const [items, setItems] = useState(() => loadStoredItems())
+  const queryClient = useQueryClient()
+  const queryKey = ['shopping-list']
 
-  const hasProduct = useCallback((productId) => {
-    return items.some((item) => item.product?.id === productId)
-  }, [items])
+  const { data: items = [] } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('shopping_lists_view')
+        .select('*')
+        .order('added_at', { ascending: false })
 
-  const refreshItems = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('shopping_lists_view')
-      .select('*')
-      .order('added_at', { ascending: false })
+      if (error) throw error
 
-    if (!error) {
       const mapped = (data || []).map((row) => ({
         id: row.list_id,
         product: {
@@ -61,60 +62,118 @@ export function ShoppingListProvider({ children }) {
         quantity: row.quantity,
         checked: row.checked
       }))
-      setItems(mapped)
       persistItems(mapped)
+      return mapped
+    },
+    initialData: loadStoredItems(),
+    staleTime: 5 * 60 * 1000
+  })
+
+  const hasProduct = useCallback((productId, itemList = items) => {
+    return itemList.some((item) => item.product?.id === productId)
+  }, [items])
+
+  const addMutation = useMutation({
+    mutationFn: async (product) => {
+      const { data, error } = await supabase
+        .from('shopping_lists')
+        .upsert({ product_id: product.id }, { onConflict: 'product_id' })
+        .select('id, product_id, quantity, checked')
+        .single()
+      if (error) throw error
+      return data
+    },
+    onMutate: async (product) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData(queryKey)
+      if (!hasProduct(product.id, previous || [])) {
+        const optimistic = [{ id: Date.now(), product, quantity: 1, checked: false }, ...(previous || [])]
+        queryClient.setQueryData(queryKey, optimistic)
+        persistItems(optimistic)
+      }
+      return { previous }
+    },
+    onError: (err, product, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous)
+        persistItems(context.previous)
+      }
     }
-  }, [])
+  })
+
+  const removeMutation = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('shopping_lists').delete().eq('id', id)
+      if (error) throw error
+    },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData(queryKey)
+      const optimistic = (previous || []).filter(item => item.id !== id)
+      queryClient.setQueryData(queryKey, optimistic)
+      persistItems(optimistic)
+      return { previous }
+    },
+    onError: (err, id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous)
+        persistItems(context.previous)
+      }
+    }
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, checked }) => {
+      const { error } = await supabase.from('shopping_lists').update({ checked }).eq('id', id)
+      if (error) throw error
+    },
+    onMutate: async ({ id, checked }) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData(queryKey)
+      const optimistic = (previous || []).map(item => item.id === id ? { ...item, checked } : item)
+      queryClient.setQueryData(queryKey, optimistic)
+      persistItems(optimistic)
+      return { previous }
+    },
+    onError: (err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous)
+        persistItems(context.previous)
+      }
+    }
+  })
 
   const addItem = useCallback(async (product) => {
     if (hasProduct(product.id)) {
       return { error: null }
     }
-
-    const { data, error } = await supabase
-      .from('shopping_lists')
-      .upsert({ product_id: product.id }, { onConflict: 'product_id' })
-      .select('id, product_id, quantity, checked')
-      .single()
-
-    if (!error && data) {
-      const next = [
-        {
-          id: data.id,
-          product,
-          quantity: data.quantity,
-          checked: data.checked
-        },
-        ...items
-      ]
-      setItems(next)
-      persistItems(next)
+    try {
+      await addMutation.mutateAsync(product)
+      return { error: null }
+    } catch (error) {
+      return { error }
     }
-
-    return { error }
-  }, [items, hasProduct])
+  }, [addMutation, hasProduct])
 
   const removeItem = useCallback(async (id) => {
-    await supabase
-      .from('shopping_lists')
-      .delete()
-      .eq('id', id)
-
-    const next = items.filter((item) => item.id !== id)
-    setItems(next)
-    persistItems(next)
-  }, [items])
+    try {
+      await removeMutation.mutateAsync(id)
+    } catch (error) {
+      // handle error if needed
+    }
+  }, [removeMutation])
 
   const toggleItem = useCallback(async (id, checked) => {
-    await supabase
-      .from('shopping_lists')
-      .update({ checked })
-      .eq('id', id)
+    try {
+      await toggleMutation.mutateAsync({ id, checked })
+    } catch (error) {
+      // handle error if needed
+    }
+  }, [toggleMutation])
 
-    const next = items.map((item) => item.id === id ? { ...item, checked } : item)
-    setItems(next)
-    persistItems(next)
-  }, [items])
+  const refreshItems = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey })
+  }, [queryClient])
 
   const value = useMemo(() => ({
     items,

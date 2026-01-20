@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
+import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useShoppingList } from '@/components/ShoppingListContext'
+import { useHapticFeedback } from '@/lib/useHapticFeedback'
 
 const SUPERMARKET_LOGOS = {
   lidl: '/logos/lidl-logo.png',
@@ -43,9 +45,10 @@ const formatCurrency = (value) => {
   }).format(parsed)
 }
 
-export default function ProductCard({ product }) {
-  const { addItem, hasProduct } = useShoppingList()
+const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
+  const { addItem } = useShoppingList()
   const [isAdding, setIsAdding] = useState(false)
+  const triggerHaptic = useHapticFeedback()
 
   const formattedName = formatText(product.product_name)
   const formattedBrand = formatText(product.brand)
@@ -60,7 +63,7 @@ export default function ProductCard({ product }) {
     : rawOldPrice || derivedOldPrice
   const formattedCurrent = formatCurrency(currentPrice) ?? '—'
   const formattedOld = displayOldPrice && currentPrice && displayOldPrice > currentPrice ? formatCurrency(displayOldPrice) : null
-  const alreadyAdded = hasProduct(product.id)
+  const alreadyAdded = isAdded
 
   const displayDiscount = product.discount_percent
     ? (typeof product.discount_percent === 'number' || !isNaN(product.discount_percent))
@@ -76,6 +79,7 @@ export default function ProductCard({ product }) {
     if (alreadyAdded || isAdding) {
       return
     }
+    triggerHaptic('light')
     setIsAdding(true)
     await addItem(product)
     setTimeout(() => setIsAdding(false), 300)
@@ -87,14 +91,20 @@ export default function ProductCard({ product }) {
         <div className="flex items-center gap-[12px] w-full">
           <div className="flex-shrink-0">
             <div
-              className={`w-[40px] h-[40px] rounded-[6px] flex items-center justify-center overflow-hidden ${
+              className={`relative w-[40px] h-[40px] rounded-[6px] flex items-center justify-center overflow-hidden ${
                 logoUrl
                   ? 'bg-transparent'
                   : 'bg-[linear-gradient(180deg,_#FFF000_0%,_#FFF000_33%,_#E60A14_33%,_#E60A14_66%,_#0050AA_66%,_#0050AA_100%)]'
               }`}
             >
               {logoUrl ? (
-                <img src={logoUrl} alt="" className="h-full w-full object-contain" />
+                <Image
+                  src={logoUrl}
+                  alt={`${product.supermarket} logo`}
+                  fill
+                  objectFit="contain"
+                  priority
+                />
               ) : (
                 <span className="text-[10px] font-medium text-gray-600 uppercase tracking-wider">
                   {product.supermarket}
@@ -144,17 +154,40 @@ export default function ProductCard({ product }) {
             )}
           </div>
           <Button
-            aria-label={alreadyAdded ? 'Aggiunto alla Lista' : 'Aggiungi alla Lista'}
-            className={`flex-shrink-0 w-[48px] h-[48px] font-sans font-bold text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] ${
+            aria-label={alreadyAdded ? 'Aggiunto alla Lista' : isAdding ? 'Aggiungendo...' : 'Aggiungi alla Lista'}
+            className={`flex-shrink-0 w-[48px] h-[48px] font-sans font-bold text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] transition-all duration-200 active:scale-95 ${
               alreadyAdded
                 ? 'bg-[#f6f1ee] text-[#caa79b]'
-                : 'bg-[#f7ae4b] text-[#561517] hover:bg-[#f7ae4b]/90'
+                : isAdding
+                ? 'bg-[#f7ae4b]/80 text-[#561517]'
+                : 'bg-[#f7ae4b] text-[#561517] hover:bg-[#f7ae4b]/90 active:bg-[#f7ae4b]/80'
             }`}
+            style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
             onClick={handleAdd}
-            disabled={alreadyAdded}
+            disabled={alreadyAdded || isAdding}
           >
             {alreadyAdded ? (
               '✓'
+            ) : isAdding ? (
+              <svg
+                className="animate-spin size-6"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  className="opacity-25"
+                />
+                <path
+                  fill="currentColor"
+                  className="opacity-75"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
             ) : (
               <svg
                 viewBox="0 0 24 24"
@@ -177,4 +210,6 @@ export default function ProductCard({ product }) {
       </CardContent>
     </Card>
   )
-}
+})
+
+export default ProductCard
