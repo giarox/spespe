@@ -80,7 +80,7 @@ export default function ProductsGrid({ searchQuery }) {
 
     productsWithAdded.forEach((product) => {
       const nameLower = (product.product_name || '').toLowerCase()
-      if (nameLower.startsWith(queryLower)) {
+      if (nameLower.includes(queryLower)) {
         exact.push(product)
       } else {
         related.push(product)
