@@ -9,8 +9,32 @@ import { useShoppingList } from '@/components/ShoppingListContext'
 const PAGE_SIZE = 36
 const MAX_ITEMS = 360
 const SEARCH_DEBOUNCE_MS = 200
+const EXACT_SCORE_THRESHOLD = 0.2
 
 const normalizeQuery = (value) => (value || '').trim()
+const normalizeForMatch = (value) => {
+  if (!value) return ''
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const tokenizeMatch = (value) => {
+  const normalized = normalizeForMatch(value)
+  return normalized ? normalized.split(' ') : []
+}
+
+const matchesTokenSet = (queryTokens, target) => {
+  if (!queryTokens.length) return false
+  const targetTokens = tokenizeMatch(target)
+  if (!targetTokens.length) return false
+  const targetSet = new Set(targetTokens)
+  return queryTokens.every((token) => targetSet.has(token))
+}
 
 const buildQuery = (searchQuery, page) => {
   const from = page * PAGE_SIZE
@@ -69,18 +93,24 @@ export default function ProductsGrid({ searchQuery }) {
   const showFuzzyHint = Boolean(normalizedQuery) && products.length > 0
   const isTransitioning = isFetching && !isFetchingNextPage
 
+  const matchTokens = useMemo(() => tokenizeMatch(normalizedQuery), [normalizedQuery])
+
   const splitProducts = useMemo(() => {
     if (!normalizedQuery || productsWithAdded.length === 0) {
       return { exact: [], related: [] }
     }
 
-    const queryLower = normalizedQuery.toLowerCase()
     const exact = []
     const related = []
 
     productsWithAdded.forEach((product) => {
-      const nameLower = (product.product_name || '').toLowerCase()
-      if (nameLower.includes(queryLower)) {
+      const matchesName = matchesTokenSet(matchTokens, product.product_name)
+      const matchesBrand = matchesTokenSet(matchTokens, product.brand)
+      const hasScoreMatch =
+        matchTokens.length === 0 &&
+        typeof product.score === 'number' &&
+        product.score >= EXACT_SCORE_THRESHOLD
+      if (matchesName || matchesBrand || hasScoreMatch) {
         exact.push(product)
       } else {
         related.push(product)
@@ -88,7 +118,7 @@ export default function ProductsGrid({ searchQuery }) {
     })
 
     return { exact, related }
-  }, [productsWithAdded, normalizedQuery])
+  }, [productsWithAdded, normalizedQuery, matchTokens])
 
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || loadingMore || loading) {
