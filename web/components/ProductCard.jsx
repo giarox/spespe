@@ -45,8 +45,8 @@ const formatCurrency = (value) => {
   }).format(parsed)
 }
 
-const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
-  const { addItem } = useShoppingList()
+const ProductCard = React.memo(function ProductCard({ product }) {
+  const { addItem, hasProduct } = useShoppingList()
   const [isAdding, setIsAdding] = useState(false)
   const triggerHaptic = useHapticFeedback()
 
@@ -63,7 +63,7 @@ const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
     : rawOldPrice || derivedOldPrice
   const formattedCurrent = formatCurrency(currentPrice) ?? '—'
   const formattedOld = displayOldPrice && currentPrice && displayOldPrice > currentPrice ? formatCurrency(displayOldPrice) : null
-  const alreadyAdded = isAdded
+  const alreadyAdded = hasProduct(product.id)
 
   const displayDiscount = product.discount_percent
     ? (typeof product.discount_percent === 'number' || !isNaN(product.discount_percent))
@@ -113,11 +113,11 @@ const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
             </div>
           </div>
           <div className="flex flex-1 min-w-0 flex-col items-start">
-            <h3 className="font-sans font-semibold text-[18px] leading-[26px] text-[#561517] font-semibold">
+            <h3 className="font-sans font-semibold text-[18px] leading-[26px] text-[#561517]">
               {formattedName}
             </h3>
             {formattedBrand && (
-              <p className="font-sans font-normal text-[16px] leading-[20px] text-[rgba(74,52,47,0.9)] font-normal mt-[2px]">
+              <p className="font-sans font-normal text-[16px] leading-[20px] text-[rgba(74,52,47,0.9)] mt-[2px]">
                 {formattedBrand}
               </p>
             )}
@@ -126,36 +126,36 @@ const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
         <div className="flex items-center gap-[12px] w-full">
           <div className="flex flex-1 min-w-0 flex-col gap-[8px]">
             <div className="flex flex-wrap items-center gap-[10px] w-full min-w-0">
-              <span className="font-sans font-semibold text-[24px] leading-[32px] text-[#e36e4b] font-semibold">
+              <span className="font-sans font-semibold text-[24px] leading-[32px] text-[#e36e4b]">
                 {formattedCurrent}
               </span>
               {formattedOld && (
-                <span className="font-sans font-normal text-[16px] text-[rgba(74,52,47,0.7)] font-normal line-through decoration-solid">
+                <span className="font-sans font-normal text-[16px] text-[rgba(74,52,47,0.7)] line-through decoration-solid">
                   {formattedOld}
                 </span>
               )}
               {displayDiscount && (
                 <div className="flex-shrink-0 px-[7px] py-[2px] bg-[#e36e4b] text-white text-[14px] font-bold rounded-[28px] border border-solid border-[rgba(255,255,255,0.08)] shadow-[inset_0px_2px_4px_0px_rgba(255,255,255,0.12)]">
-                  <span className="uppercase tracking-wider font-sans font-bold">
+                  <span className="uppercase tracking-wider font-sans">
                     {displayDiscount}
                   </span>
                 </div>
               )}
             </div>
             {metaLine && (
-              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(74,52,47,0.8)] font-normal">
+              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(74,52,47,0.8)]">
                 {metaLine}
               </p>
             )}
             {Array.isArray(product.notes) && product.notes.length > 0 && (
-              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(74,52,47,0.8)] font-normal italic">
+              <p className="font-sans font-normal text-[12px] leading-[12px] text-[rgba(74,52,47,0.8)] italic">
                 {product.notes.join(', ')}
               </p>
             )}
           </div>
           <Button
             aria-label={alreadyAdded ? 'Aggiunto alla Lista' : isAdding ? 'Aggiungendo...' : 'Aggiungi alla Lista'}
-            className={`flex-shrink-0 w-[48px] h-[48px] font-sans font-bold text-[14px] font-bold rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] transition-all duration-200 active:scale-95 ${
+            className={`flex-shrink-0 w-[48px] h-[48px] font-sans font-bold text-[14px] rounded-[12px] border border-solid border-[rgba(0,0,0,0.04)] shadow-[inset_0px_-2px_4px_0px_rgba(0,0,0,0.08),inset_0px_2px_4px_0px_rgba(255,255,255,0.48)] transition-all duration-200 active:scale-95 ${
               alreadyAdded
                 ? 'bg-[#16a34a] text-white'
                 : isAdding
@@ -196,7 +196,7 @@ const ProductCard = React.memo(function ProductCard({ product, isAdded }) {
                 strokeWidth="1.25"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                 className="size-8 !important"
+                className="size-6"
               >
                 <path d="M3 3.14844H4.99656L7.64988 14.3805C7.90674 15.4664 8.92351 16.1981 10.0347 16.0949L16.972 15.4518C17.9761 15.3584 18.8246 14.6676 19.1184 13.7024L20.9505 7.6981C21.1704 6.98101 20.6294 6.25614 19.8793 6.26295L5.82943 6.37679" />
                 <path d="M15.0041 10.9396H11.8633" />

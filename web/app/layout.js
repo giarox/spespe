@@ -1,9 +1,6 @@
-'use client';
-
 import { Instrument_Serif, Vend_Sans } from "next/font/google";
-import { ShoppingListProvider } from '@/components/ShoppingListContext'
 import AspeLogo from '@/components/AspeLogo'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import Providers from '@/components/Providers'
 import "./globals.css";
 
 const vendSans = Vend_Sans({
@@ -18,15 +15,6 @@ const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
   weight: ["400"],
   style: ["italic"]
-});
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes for mobile performance
-      cacheTime: 10 * 60 * 1000, // 10 minutes cache
-    },
-  },
 });
 
 export const metadata = {
@@ -46,28 +34,26 @@ export default function RootLayout({ children }) {
   return (
     <html lang="it">
       <body className={`${vendSans.variable} ${instrumentSerif.variable} antialiased bg-[#f6f1ee] text-[#6d4b42]`}>
-        <QueryClientProvider client={queryClient}>
-          <ShoppingListProvider>
-            <header className="px-6 pt-12 pb-4">
-              <div className="mx-auto w-full max-w-5xl">
-                <div className="flex items-center gap-2">
-                  <AspeLogo className="w-8 h-8" />
-                  <span className="text-2xl font-bold tracking-tight text-[#f16b6b]">Aspè!</span>
-                </div>
+        <Providers>
+          <header className="px-6 pt-12 pb-4">
+            <div className="mx-auto w-full max-w-5xl">
+              <div className="flex items-center gap-2">
+                <AspeLogo className="w-8 h-8" />
+                <span className="text-2xl font-bold tracking-tight text-[#f16b6b]">Aspè!</span>
               </div>
-            </header>
+            </div>
+          </header>
 
-            <main className="min-h-[70vh] px-6 pb-16 pt-8">
-              {children}
-            </main>
+          <main className="min-h-[70vh] px-6 pb-16 pt-8">
+            {children}
+          </main>
 
-            <footer className="px-6 pb-12">
-              <div className="mx-auto w-full max-w-5xl border-t border-[#e5deda] pt-8 text-sm text-[#b18474]">
-                Aggiornato ogni lunedì alle 9:00 · Dati estratti automaticamente dai volantini digitali
-              </div>
-            </footer>
-          </ShoppingListProvider>
-        </QueryClientProvider>
+          <footer className="px-6 pb-12">
+            <div className="mx-auto w-full max-w-5xl border-t border-[#e5deda] pt-8 text-sm text-[#b18474]">
+              Aggiornato ogni lunedì alle 9:00 · Dati estratti automaticamente dai volantini digitali
+            </div>
+          </footer>
+        </Providers>
       </body>
     </html>
   );

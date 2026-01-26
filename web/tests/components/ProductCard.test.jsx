@@ -106,12 +106,11 @@ describe('ProductCard Component', () => {
     mockUseShoppingList.hasProduct.mockReturnValue(false)
   })
 
-  it('cart icon has size-8 class when not added', () => {
+  it('cart icon has size-6 class when not added', () => {
     mockUseShoppingList.hasProduct.mockReturnValue(false)
     renderWithProvider(<ProductCard product={mockProduct} />)
     const svg = screen.getByRole('button').querySelector('svg')
-    expect(svg).toHaveClass('size-8')
-    expect(svg).toHaveClass('!important')
+    expect(svg).toHaveClass('size-6')
   })
 
   it('has proper accessibility labels for added state', () => {
